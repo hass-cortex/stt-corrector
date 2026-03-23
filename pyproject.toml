@@ -1,0 +1,83 @@
+[project]
+name = "stt-corrector"
+version = "0.1.0"
+description = "STT post-recognition correction integration for Home Assistant — wraps any STT entity with phonetic correction"
+readme = "README.md"
+requires-python = ">=3.14"
+license = {text = "MIT"}
+authors = [{name = "parkghost", email = "parkghost@gmail.com"}]
+keywords = ["home-assistant", "speech-to-text", "stt", "voice", "correction", "pinyin"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Home Automation",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+]
+dependencies = [
+    "pypinyin>=0.55.0",
+    "voluptuous>=0.16.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["custom_components*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "ASYNC"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E402"]
+
+[tool.mypy]
+python_version = "3.14"
+warn_return_any = false
+warn_unused_ignores = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["custom_components"]
+
+[tool.coverage.report]
+fail_under = 70
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.commitizen]
+version = "0.1.0"
+version_files = [
+    "pyproject.toml:version",
+    "custom_components/stt_corrector/manifest.json:version",
+]
+tag_format = "$version"
+annotated_tag = true
+update_changelog_on_bump = false
+pre_bump_hooks = ["uv lock", "git add uv.lock"]
+major_version_zero = true
+
+[dependency-groups]
+dev = ["ruff>=0.14.11", "mypy>=1.19", "commitizen>=4.0", "pre-commit>=4.0"]
+test = ["pytest>=9.0", "pytest-asyncio>=1.0", "pytest-cov>=7.0"]

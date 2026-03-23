@@ -1,0 +1,103 @@
+test_correction:
+  description: 'Test correction pipeline with diagnostic output'
+  fields:
+    text:
+      description: 'Text to run through the correction pipeline'
+      required: true
+      example: 'turn on the livin room lite'
+      selector:
+        text:
+
+add_phrases:
+  description: 'Add phrases to the custom phrases list'
+  fields:
+    phrases:
+      description: 'List of phrases to add'
+      required: true
+      example: '["Living Room Light", "Kitchen Fan"]'
+      selector:
+        object:
+
+remove_phrases:
+  description: 'Remove phrases from the custom phrases list'
+  fields:
+    phrases:
+      description: 'List of phrases to remove'
+      required: true
+      example: '["Living Room Light"]'
+      selector:
+        object:
+
+add_replacements:
+  description: 'Add or update custom replacement rules'
+  fields:
+    replacements:
+      description: 'Dictionary of wrong to correct replacement pairs'
+      required: true
+      example: '{"livin room": "living room", "kichen light": "kitchen light"}'
+      selector:
+        object:
+
+remove_replacements:
+  description: 'Remove custom replacement rules by key'
+  fields:
+    keys:
+      description: 'List of replacement keys (wrong text) to remove'
+      required: true
+      example: '["livin room"]'
+      selector:
+        object:
+
+get_correction_config:
+  description: 'Get the current correction configuration'
+
+set_correction_config:
+  description: 'Set correction configuration (from get_correction_config output)'
+  fields:
+    custom_phrases:
+      description: 'List of custom correction phrases'
+      selector:
+        object:
+    custom_replacements:
+      description: 'Dictionary of wrong to correct replacement pairs'
+      selector:
+        object:
+    enable_custom_replacements:
+      description: 'Enable custom replacement rules'
+      selector:
+        boolean:
+    enable_fuzzy_matching:
+      description: 'Enable similarity matching'
+      selector:
+        boolean:
+    fuzzy_threshold:
+      description: 'Matching sensitivity (0.5-1.0)'
+      selector:
+        number:
+          min: 0.5
+          max: 1.0
+          step: 0.05
+    custom_exclusions:
+      description: 'List of segments to never correct'
+      selector:
+        object:
+
+add_exclusions:
+  description: 'Add segments to the exclusion list'
+  fields:
+    exclusions:
+      description: 'List of segments to exclude from correction'
+      required: true
+      example: '["pocket", "chicken"]'
+      selector:
+        object:
+
+remove_exclusions:
+  description: 'Remove segments from the exclusion list'
+  fields:
+    exclusions:
+      description: 'List of segments to remove from exclusion list'
+      required: true
+      example: '["pocket"]'
+      selector:
+        object:

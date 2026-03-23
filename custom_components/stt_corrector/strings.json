@@ -1,0 +1,197 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "STT Corrector",
+        "description": "Set up STT correction for a speech-to-text entity.",
+        "data": {
+          "wrapped_entity_id": "STT Entity"
+        },
+        "data_description": {
+          "wrapped_entity_id": "Select the speech-to-text entity to wrap with correction."
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "This STT entity is already configured.",
+      "no_stt_entities": "No compatible STT entities found. Please set up an STT integration first."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "STT Corrector Options",
+        "description": "Configure the correction pipeline stages and phrase sources.",
+        "data": {
+          "correction_stages": "Active Correction Stages",
+          "auto_collect": "Phrase Collection",
+          "replacements": "Custom Replacements",
+          "similarity": "Similarity Matching"
+        },
+        "data_description": {
+          "correction_stages": "Select which correction stages to apply after transcription.",
+          "auto_collect": "Automatically collect phrases from Home Assistant entities.",
+          "replacements": "Define exact-match replacements for common misrecognitions.",
+          "similarity": "Use fuzzy matching to correct near-miss transcriptions."
+        },
+        "sections": {
+          "auto_collect": {
+            "name": "Phrase Collection",
+            "description": "Sources used to automatically build the phrase vocabulary.",
+            "data": {
+              "auto_collect_sources": "Collection Sources",
+              "custom_phrases": "Custom Phrases"
+            },
+            "data_description": {
+              "auto_collect_sources": "Select which Home Assistant sources to collect phrases from.",
+              "custom_phrases": "Additional phrases to include in the vocabulary (one per entry)."
+            }
+          },
+          "replacements": {
+            "name": "Custom Replacements",
+            "description": "Define exact-match replacements. Format: wrong=correct",
+            "data": {
+              "custom_replacements": "Replacement Pairs"
+            },
+            "data_description": {
+              "custom_replacements": "Enter pairs as 'wrong=correct', one per line."
+            }
+          },
+          "similarity": {
+            "name": "Similarity Matching",
+            "description": "Configure fuzzy matching for near-miss corrections.",
+            "data": {
+              "fuzzy_threshold": "Similarity Threshold",
+              "custom_exclusions": "Exclusions"
+            },
+            "data_description": {
+              "fuzzy_threshold": "Minimum similarity score (0.5–1.0) to accept a correction.",
+              "custom_exclusions": "Words or phrases to exclude from similarity matching."
+            }
+          }
+        }
+      }
+    }
+  },
+  "entity": {
+    "stt": {
+      "corrected_stt": {
+        "name": "Corrected STT"
+      }
+    },
+    "sensor": {
+      "total_requests": {
+        "name": "Total requests"
+      },
+      "successful_requests": {
+        "name": "Successful requests"
+      },
+      "failed_requests": {
+        "name": "Failed requests"
+      },
+      "corrections_applied": {
+        "name": "Corrections applied"
+      },
+      "last_raw_text": {
+        "name": "Transcribed text"
+      },
+      "last_corrected_text": {
+        "name": "Corrected text"
+      },
+      "last_result": {
+        "name": "Last result",
+        "state": {
+          "success": "Success",
+          "no_speech": "No speech",
+          "error": "Error",
+          "wrapped_unavailable": "Wrapped unavailable"
+        }
+      },
+      "last_language": {
+        "name": "Last language"
+      }
+    }
+  },
+  "services": {
+    "test_correction": {
+      "name": "Test correction",
+      "description": "Test the correction pipeline with diagnostic output.",
+      "fields": {
+        "text": {
+          "name": "Text",
+          "description": "Text to run through the correction pipeline."
+        }
+      }
+    },
+    "add_phrases": {
+      "name": "Add phrases",
+      "description": "Add phrases to the custom phrases list.",
+      "fields": {
+        "phrases": {
+          "name": "Phrases",
+          "description": "List of phrases to add."
+        }
+      }
+    },
+    "remove_phrases": {
+      "name": "Remove phrases",
+      "description": "Remove phrases from the custom phrases list.",
+      "fields": {
+        "phrases": {
+          "name": "Phrases",
+          "description": "List of phrases to remove."
+        }
+      }
+    },
+    "add_replacements": {
+      "name": "Add replacements",
+      "description": "Add or update custom replacement rules.",
+      "fields": {
+        "replacements": {
+          "name": "Replacements",
+          "description": "Dictionary of wrong to correct replacement pairs."
+        }
+      }
+    },
+    "remove_replacements": {
+      "name": "Remove replacements",
+      "description": "Remove custom replacement rules by key.",
+      "fields": {
+        "keys": {
+          "name": "Keys",
+          "description": "List of replacement keys to remove."
+        }
+      }
+    },
+    "get_correction_config": {
+      "name": "Get correction config",
+      "description": "Get the current correction configuration."
+    },
+    "set_correction_config": {
+      "name": "Set correction config",
+      "description": "Update correction configuration.",
+      "fields": {
+        "custom_phrases": { "name": "Custom phrases", "description": "List of phrases." },
+        "custom_replacements": { "name": "Custom replacements", "description": "Dictionary of replacement pairs." },
+        "enable_custom_replacements": { "name": "Enable replacements", "description": "Enable custom replacement rules." },
+        "enable_fuzzy_matching": { "name": "Enable fuzzy matching", "description": "Enable similarity matching." },
+        "fuzzy_threshold": { "name": "Fuzzy threshold", "description": "Matching sensitivity (0.5-1.0)." },
+        "custom_exclusions": { "name": "Custom exclusions", "description": "List of segments to never correct." }
+      }
+    },
+    "add_exclusions": {
+      "name": "Add exclusions",
+      "description": "Add segments to the exclusion list.",
+      "fields": {
+        "exclusions": { "name": "Exclusions", "description": "List of segments to exclude." }
+      }
+    },
+    "remove_exclusions": {
+      "name": "Remove exclusions",
+      "description": "Remove segments from the exclusion list.",
+      "fields": {
+        "exclusions": { "name": "Exclusions", "description": "List of segments to remove." }
+      }
+    }
+  }
+}
