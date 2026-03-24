@@ -143,20 +143,7 @@ Development versions may contain breaking changes -- to revert, run the same act
 
 ## Contributing
 
-```bash
-# Setup
-git clone https://github.com/hass-cortex/stt-corrector.git
-cd stt-corrector
-uv sync
-
-# Dev workflow
-uv run pytest tests/ -v                    # Run tests
-uv run ruff check .                        # Lint
-uv run ruff format .                       # Format
-uv run mypy custom_components/             # Type check
-```
-
-Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, testing, and contribution guidelines.
 
 ## License
 
