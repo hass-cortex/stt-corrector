@@ -50,7 +50,7 @@ class CorrectedSTTEntity(SpeechToTextEntity):
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, config_entry.entry_id)},
             name=config_entry.title,
-            manufacturer="hass-cortex",
+            manufacturer="HASS Cortex",
             model="STT Corrector",
             entry_type=DeviceEntryType.SERVICE,
         )
