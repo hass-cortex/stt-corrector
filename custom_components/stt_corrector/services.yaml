@@ -1,6 +1,14 @@
 test_correction:
   description: 'Test correction pipeline with diagnostic output'
   fields:
+    entity_id:
+      description: 'Target STT Corrector entity'
+      required: true
+      example: 'stt.groqcloud_whisper_corrected'
+      selector:
+        entity:
+          integration: stt_corrector
+          domain: stt
     text:
       description: 'Text to run through the correction pipeline'
       required: true
@@ -11,6 +19,14 @@ test_correction:
 add_phrases:
   description: 'Add phrases to the custom phrases list'
   fields:
+    entity_id:
+      description: 'Target STT Corrector entity'
+      required: true
+      example: 'stt.groqcloud_whisper_corrected'
+      selector:
+        entity:
+          integration: stt_corrector
+          domain: stt
     phrases:
       description: 'List of phrases to add'
       required: true
@@ -21,6 +37,14 @@ add_phrases:
 remove_phrases:
   description: 'Remove phrases from the custom phrases list'
   fields:
+    entity_id:
+      description: 'Target STT Corrector entity'
+      required: true
+      example: 'stt.groqcloud_whisper_corrected'
+      selector:
+        entity:
+          integration: stt_corrector
+          domain: stt
     phrases:
       description: 'List of phrases to remove'
       required: true
@@ -31,6 +55,14 @@ remove_phrases:
 add_replacements:
   description: 'Add or update custom replacement rules'
   fields:
+    entity_id:
+      description: 'Target STT Corrector entity'
+      required: true
+      example: 'stt.groqcloud_whisper_corrected'
+      selector:
+        entity:
+          integration: stt_corrector
+          domain: stt
     replacements:
       description: 'Dictionary of wrong to correct replacement pairs'
       required: true
@@ -41,6 +73,14 @@ add_replacements:
 remove_replacements:
   description: 'Remove custom replacement rules by key'
   fields:
+    entity_id:
+      description: 'Target STT Corrector entity'
+      required: true
+      example: 'stt.groqcloud_whisper_corrected'
+      selector:
+        entity:
+          integration: stt_corrector
+          domain: stt
     keys:
       description: 'List of replacement keys (wrong text) to remove'
       required: true
@@ -50,10 +90,27 @@ remove_replacements:
 
 get_correction_config:
   description: 'Get the current correction configuration'
+  fields:
+    entity_id:
+      description: 'Target STT Corrector entity'
+      required: true
+      example: 'stt.groqcloud_whisper_corrected'
+      selector:
+        entity:
+          integration: stt_corrector
+          domain: stt
 
 set_correction_config:
   description: 'Set correction configuration (from get_correction_config output)'
   fields:
+    entity_id:
+      description: 'Target STT Corrector entity'
+      required: true
+      example: 'stt.groqcloud_whisper_corrected'
+      selector:
+        entity:
+          integration: stt_corrector
+          domain: stt
     custom_phrases:
       description: 'List of custom correction phrases'
       selector:
@@ -85,6 +142,14 @@ set_correction_config:
 add_exclusions:
   description: 'Add segments to the exclusion list'
   fields:
+    entity_id:
+      description: 'Target STT Corrector entity'
+      required: true
+      example: 'stt.groqcloud_whisper_corrected'
+      selector:
+        entity:
+          integration: stt_corrector
+          domain: stt
     exclusions:
       description: 'List of segments to exclude from correction'
       required: true
@@ -95,6 +160,14 @@ add_exclusions:
 remove_exclusions:
   description: 'Remove segments from the exclusion list'
   fields:
+    entity_id:
+      description: 'Target STT Corrector entity'
+      required: true
+      example: 'stt.groqcloud_whisper_corrected'
+      selector:
+        entity:
+          integration: stt_corrector
+          domain: stt
     exclusions:
       description: 'List of segments to remove from exclusion list'
       required: true

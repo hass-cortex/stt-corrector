@@ -9,6 +9,8 @@ import voluptuous as vol
 
 from custom_components.stt_corrector.models import STTCorrectorRuntimeData
 
+ENTITY_ID = "stt.test_corrected"
+
 
 def _make_service_call(data: dict) -> MagicMock:
     """Create a mock ServiceCall with the given data."""
@@ -19,10 +21,15 @@ def _make_service_call(data: dict) -> MagicMock:
 
 def _make_config_entry(options: dict | None = None) -> MagicMock:
     """Create a mock config entry with the given options."""
+    entity = MagicMock()
+    entity.entity_id = ENTITY_ID
+
     entry = MagicMock()
     entry.entry_id = "test_entry"
     entry.options = options or {}
-    entry.runtime_data = STTCorrectorRuntimeData()
+    runtime_data = STTCorrectorRuntimeData()
+    runtime_data.entity = entity
+    entry.runtime_data = runtime_data
     return entry
 
 
@@ -100,7 +107,7 @@ class TestTestCorrection:
         entity = MagicMock()
         entity.async_test_correction = _test_correction
 
-        call = _make_service_call({"text": "走廊等"})
+        call = _make_service_call({"entity_id": ENTITY_ID, "text": "走廊等"})
 
         with patch(
             "custom_components.stt_corrector.services._find_stt_entity",
@@ -123,7 +130,7 @@ class TestTestCorrection:
             async_handle_test_correction,
         )
 
-        call = _make_service_call({"text": ""})
+        call = _make_service_call({"entity_id": ENTITY_ID, "text": ""})
         with pytest.raises(ServiceValidationError, match="required"):
             await async_handle_test_correction(mock_hass, call)
 
@@ -141,7 +148,7 @@ class TestAddPhrases:
         entry = _make_config_entry({"custom_phrases": ["existing"]})
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"phrases": ["new1", "new2"]})
+        call = _make_service_call({"entity_id": ENTITY_ID, "phrases": ["new1", "new2"]})
         await async_handle_add_phrases(mock_hass, call)
 
         updated_options = mock_hass.config_entries.async_update_entry.call_args[1][
@@ -159,7 +166,7 @@ class TestAddPhrases:
         entry = _make_config_entry({"custom_phrases": ["a", "b"]})
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"phrases": ["b", "c"]})
+        call = _make_service_call({"entity_id": ENTITY_ID, "phrases": ["b", "c"]})
         await async_handle_add_phrases(mock_hass, call)
 
         updated_options = mock_hass.config_entries.async_update_entry.call_args[1][
@@ -177,7 +184,7 @@ class TestAddPhrases:
         entry = _make_config_entry()
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"phrases": []})
+        call = _make_service_call({"entity_id": ENTITY_ID, "phrases": []})
         await async_handle_add_phrases(mock_hass, call)
 
         mock_hass.config_entries.async_update_entry.assert_not_called()
@@ -192,7 +199,9 @@ class TestAddPhrases:
         entry = _make_config_entry({"custom_phrases": []})
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"phrases": ["  hello  ", "  world  "]})
+        call = _make_service_call(
+            {"entity_id": ENTITY_ID, "phrases": ["  hello  ", "  world  "]}
+        )
         await async_handle_add_phrases(mock_hass, call)
 
         updated_options = mock_hass.config_entries.async_update_entry.call_args[1][
@@ -210,7 +219,7 @@ class TestAddPhrases:
         entry = _make_config_entry({"custom_phrases": []})
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"phrases": ["  ", "valid"]})
+        call = _make_service_call({"entity_id": ENTITY_ID, "phrases": ["  ", "valid"]})
         await async_handle_add_phrases(mock_hass, call)
 
         updated_options = mock_hass.config_entries.async_update_entry.call_args[1][
@@ -232,7 +241,7 @@ class TestRemovePhrases:
         entry = _make_config_entry({"custom_phrases": ["a", "b", "c"]})
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"phrases": ["b"]})
+        call = _make_service_call({"entity_id": ENTITY_ID, "phrases": ["b"]})
         await async_handle_remove_phrases(mock_hass, call)
 
         updated_options = mock_hass.config_entries.async_update_entry.call_args[1][
@@ -250,7 +259,7 @@ class TestRemovePhrases:
         entry = _make_config_entry({"custom_phrases": ["a"]})
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"phrases": ["z"]})
+        call = _make_service_call({"entity_id": ENTITY_ID, "phrases": ["z"]})
         await async_handle_remove_phrases(mock_hass, call)
 
         updated_options = mock_hass.config_entries.async_update_entry.call_args[1][
@@ -268,7 +277,7 @@ class TestRemovePhrases:
         entry = _make_config_entry({"custom_phrases": ["a"]})
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"phrases": []})
+        call = _make_service_call({"entity_id": ENTITY_ID, "phrases": []})
         await async_handle_remove_phrases(mock_hass, call)
 
         mock_hass.config_entries.async_update_entry.assert_not_called()
@@ -287,7 +296,7 @@ class TestAddReplacements:
         entry = _make_config_entry({"custom_replacements": {"a": "b"}})
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"replacements": {"c": "d"}})
+        call = _make_service_call({"entity_id": ENTITY_ID, "replacements": {"c": "d"}})
         await async_handle_add_replacements(mock_hass, call)
 
         updated_options = mock_hass.config_entries.async_update_entry.call_args[1][
@@ -305,7 +314,9 @@ class TestAddReplacements:
         entry = _make_config_entry({"custom_replacements": {"old": "v1"}})
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"replacements": {"old": "v2"}})
+        call = _make_service_call(
+            {"entity_id": ENTITY_ID, "replacements": {"old": "v2"}}
+        )
         await async_handle_add_replacements(mock_hass, call)
 
         updated_options = mock_hass.config_entries.async_update_entry.call_args[1][
@@ -323,7 +334,7 @@ class TestAddReplacements:
         entry = _make_config_entry()
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"replacements": {}})
+        call = _make_service_call({"entity_id": ENTITY_ID, "replacements": {}})
         await async_handle_add_replacements(mock_hass, call)
 
         mock_hass.config_entries.async_update_entry.assert_not_called()
@@ -342,7 +353,7 @@ class TestRemoveReplacements:
         entry = _make_config_entry({"custom_replacements": {"a": "1", "b": "2"}})
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"keys": ["a"]})
+        call = _make_service_call({"entity_id": ENTITY_ID, "keys": ["a"]})
         await async_handle_remove_replacements(mock_hass, call)
 
         updated_options = mock_hass.config_entries.async_update_entry.call_args[1][
@@ -360,7 +371,7 @@ class TestRemoveReplacements:
         entry = _make_config_entry({"custom_replacements": {"a": "1"}})
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"keys": ["z"]})
+        call = _make_service_call({"entity_id": ENTITY_ID, "keys": ["z"]})
         await async_handle_remove_replacements(mock_hass, call)
 
         updated_options = mock_hass.config_entries.async_update_entry.call_args[1][
@@ -378,7 +389,7 @@ class TestRemoveReplacements:
         entry = _make_config_entry()
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"keys": []})
+        call = _make_service_call({"entity_id": ENTITY_ID, "keys": []})
         await async_handle_remove_replacements(mock_hass, call)
 
         mock_hass.config_entries.async_update_entry.assert_not_called()
@@ -406,7 +417,7 @@ class TestGetCorrectionConfig:
         )
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({})
+        call = _make_service_call({"entity_id": ENTITY_ID})
         result = await async_handle_get_correction_config(mock_hass, call)
 
         assert result["custom_phrases"] == ["phrase1"]
@@ -426,7 +437,7 @@ class TestGetCorrectionConfig:
         entry = _make_config_entry({})
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({})
+        call = _make_service_call({"entity_id": ENTITY_ID})
         result = await async_handle_get_correction_config(mock_hass, call)
 
         assert result["custom_phrases"] == []
@@ -452,6 +463,7 @@ class TestSetCorrectionConfig:
 
         call = _make_service_call(
             {
+                "entity_id": ENTITY_ID,
                 "custom_phrases": ["a", "b"],
                 "custom_replacements": {"x": "y"},
                 "enable_custom_replacements": False,
@@ -486,7 +498,7 @@ class TestSetCorrectionConfig:
         )
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"custom_phrases": ["new"]})
+        call = _make_service_call({"entity_id": ENTITY_ID, "custom_phrases": ["new"]})
         await async_handle_set_correction_config(mock_hass, call)
 
         updated = mock_hass.config_entries.async_update_entry.call_args[1]["options"]
@@ -508,7 +520,9 @@ class TestAddExclusions:
         entry = _make_config_entry({"custom_exclusions": ["existing"]})
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"exclusions": ["new1", "new2"]})
+        call = _make_service_call(
+            {"entity_id": ENTITY_ID, "exclusions": ["new1", "new2"]}
+        )
         await async_handle_add_exclusions(mock_hass, call)
 
         updated = mock_hass.config_entries.async_update_entry.call_args[1]["options"]
@@ -524,7 +538,7 @@ class TestAddExclusions:
         entry = _make_config_entry({"custom_exclusions": ["a"]})
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"exclusions": ["a", "b"]})
+        call = _make_service_call({"entity_id": ENTITY_ID, "exclusions": ["a", "b"]})
         await async_handle_add_exclusions(mock_hass, call)
 
         updated = mock_hass.config_entries.async_update_entry.call_args[1]["options"]
@@ -540,7 +554,7 @@ class TestAddExclusions:
         entry = _make_config_entry()
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"exclusions": []})
+        call = _make_service_call({"entity_id": ENTITY_ID, "exclusions": []})
         await async_handle_add_exclusions(mock_hass, call)
 
         mock_hass.config_entries.async_update_entry.assert_not_called()
@@ -559,7 +573,7 @@ class TestRemoveExclusions:
         entry = _make_config_entry({"custom_exclusions": ["a", "b", "c"]})
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"exclusions": ["b"]})
+        call = _make_service_call({"entity_id": ENTITY_ID, "exclusions": ["b"]})
         await async_handle_remove_exclusions(mock_hass, call)
 
         updated = mock_hass.config_entries.async_update_entry.call_args[1]["options"]
@@ -575,7 +589,7 @@ class TestRemoveExclusions:
         entry = _make_config_entry({"custom_exclusions": ["a"]})
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"exclusions": ["z"]})
+        call = _make_service_call({"entity_id": ENTITY_ID, "exclusions": ["z"]})
         await async_handle_remove_exclusions(mock_hass, call)
 
         updated = mock_hass.config_entries.async_update_entry.call_args[1]["options"]
@@ -591,7 +605,7 @@ class TestRemoveExclusions:
         entry = _make_config_entry({"custom_exclusions": ["a"]})
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"exclusions": []})
+        call = _make_service_call({"entity_id": ENTITY_ID, "exclusions": []})
         await async_handle_remove_exclusions(mock_hass, call)
 
         mock_hass.config_entries.async_update_entry.assert_not_called()
@@ -607,10 +621,14 @@ class TestSchemaValidation:
         )
 
         with pytest.raises(vol.MultipleInvalid):
-            SCHEMA_SET_CORRECTION_CONFIG({"fuzzy_threshold": 0.1})
+            SCHEMA_SET_CORRECTION_CONFIG(
+                {"entity_id": ENTITY_ID, "fuzzy_threshold": 0.1}
+            )
 
         with pytest.raises(vol.MultipleInvalid):
-            SCHEMA_SET_CORRECTION_CONFIG({"fuzzy_threshold": 1.5})
+            SCHEMA_SET_CORRECTION_CONFIG(
+                {"entity_id": ENTITY_ID, "fuzzy_threshold": 1.5}
+            )
 
     def test_set_correction_config_valid_threshold(self):
         """Valid fuzzy threshold should be accepted."""
@@ -618,7 +636,9 @@ class TestSchemaValidation:
             SCHEMA_SET_CORRECTION_CONFIG,
         )
 
-        result = SCHEMA_SET_CORRECTION_CONFIG({"fuzzy_threshold": 0.75})
+        result = SCHEMA_SET_CORRECTION_CONFIG(
+            {"entity_id": ENTITY_ID, "fuzzy_threshold": 0.75}
+        )
         assert result["fuzzy_threshold"] == 0.75
 
     def test_phrases_schema_rejects_non_list(self):
@@ -626,7 +646,7 @@ class TestSchemaValidation:
         from custom_components.stt_corrector.services import SCHEMA_PHRASES
 
         with pytest.raises(vol.MultipleInvalid):
-            SCHEMA_PHRASES({"phrases": "not-a-list"})
+            SCHEMA_PHRASES({"entity_id": ENTITY_ID, "phrases": "not-a-list"})
 
     def test_add_replacements_schema_rejects_non_dict(self):
         """Non-dict replacements should be rejected."""
@@ -635,7 +655,9 @@ class TestSchemaValidation:
         )
 
         with pytest.raises(vol.MultipleInvalid):
-            SCHEMA_ADD_REPLACEMENTS({"replacements": "not-a-dict"})
+            SCHEMA_ADD_REPLACEMENTS(
+                {"entity_id": ENTITY_ID, "replacements": "not-a-dict"}
+            )
 
     def test_test_correction_schema_requires_text(self):
         """Missing text field should be rejected."""
@@ -644,14 +666,14 @@ class TestSchemaValidation:
         )
 
         with pytest.raises(vol.MultipleInvalid):
-            SCHEMA_TEST_CORRECTION({})
+            SCHEMA_TEST_CORRECTION({"entity_id": ENTITY_ID})
 
     def test_exclusions_schema_rejects_non_list(self):
         """Non-list exclusions should be rejected."""
         from custom_components.stt_corrector.services import SCHEMA_EXCLUSIONS
 
         with pytest.raises(vol.MultipleInvalid):
-            SCHEMA_EXCLUSIONS({"exclusions": "not-a-list"})
+            SCHEMA_EXCLUSIONS({"entity_id": ENTITY_ID, "exclusions": "not-a-list"})
 
     def test_remove_replacements_schema_rejects_non_list(self):
         """Non-list keys should be rejected."""
@@ -660,16 +682,32 @@ class TestSchemaValidation:
         )
 
         with pytest.raises(vol.MultipleInvalid):
-            SCHEMA_REMOVE_REPLACEMENTS({"keys": "not-a-list"})
+            SCHEMA_REMOVE_REPLACEMENTS({"entity_id": ENTITY_ID, "keys": "not-a-list"})
 
-    def test_get_correction_config_schema_accepts_empty(self):
-        """get_correction_config schema should accept empty dict."""
+    def test_schemas_reject_missing_entity_id(self):
+        """All schemas should reject missing entity_id."""
         from custom_components.stt_corrector.services import (
+            SCHEMA_EXCLUSIONS,
             SCHEMA_GET_CORRECTION_CONFIG,
+            SCHEMA_PHRASES,
+            SCHEMA_SET_CORRECTION_CONFIG,
+            SCHEMA_TEST_CORRECTION,
         )
 
-        result = SCHEMA_GET_CORRECTION_CONFIG({})
-        assert result == {}
+        with pytest.raises(vol.MultipleInvalid):
+            SCHEMA_GET_CORRECTION_CONFIG({})
+
+        with pytest.raises(vol.MultipleInvalid):
+            SCHEMA_PHRASES({"phrases": ["test"]})
+
+        with pytest.raises(vol.MultipleInvalid):
+            SCHEMA_TEST_CORRECTION({"text": "hello"})
+
+        with pytest.raises(vol.MultipleInvalid):
+            SCHEMA_SET_CORRECTION_CONFIG({"fuzzy_threshold": 0.75})
+
+        with pytest.raises(vol.MultipleInvalid):
+            SCHEMA_EXCLUSIONS({"exclusions": ["test"]})
 
 
 class TestInputLimits:
@@ -690,7 +728,7 @@ class TestInputLimits:
         )
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"phrases": ["one_more"]})
+        call = _make_service_call({"entity_id": ENTITY_ID, "phrases": ["one_more"]})
         with pytest.raises(ServiceValidationError, match="maximum size"):
             await async_handle_add_phrases(mock_hass, call)
 
@@ -708,7 +746,9 @@ class TestInputLimits:
         entry = _make_config_entry({"custom_replacements": existing})
         _mock_hass_with_entry(mock_hass, entry)
 
-        call = _make_service_call({"replacements": {"new_key": "new_val"}})
+        call = _make_service_call(
+            {"entity_id": ENTITY_ID, "replacements": {"new_key": "new_val"}}
+        )
         with pytest.raises(ServiceValidationError, match="maximum"):
             await async_handle_add_replacements(mock_hass, call)
 
@@ -726,7 +766,9 @@ class TestInputLimits:
         _mock_hass_with_entry(mock_hass, entry)
 
         too_many = {f"k{i}": f"v{i}" for i in range(MAX_REPLACEMENT_RULES + 1)}
-        call = _make_service_call({"custom_replacements": too_many})
+        call = _make_service_call(
+            {"entity_id": ENTITY_ID, "custom_replacements": too_many}
+        )
         with pytest.raises(ServiceValidationError, match="maximum"):
             await async_handle_set_correction_config(mock_hass, call)
 
@@ -744,7 +786,7 @@ class TestInputLimits:
         _mock_hass_with_entry(mock_hass, entry)
 
         too_many = [f"p{i}" for i in range(MAX_PHRASE_LIST_SIZE + 1)]
-        call = _make_service_call({"custom_phrases": too_many})
+        call = _make_service_call({"entity_id": ENTITY_ID, "custom_phrases": too_many})
         with pytest.raises(ServiceValidationError, match="maximum"):
             await async_handle_set_correction_config(mock_hass, call)
 
@@ -764,7 +806,7 @@ class TestNoConfigEntry:
         mock_hass.config_entries = MagicMock()
         mock_hass.config_entries.async_entries = MagicMock(return_value=[])
 
-        call = _make_service_call({"phrases": ["test"]})
+        call = _make_service_call({"entity_id": ENTITY_ID, "phrases": ["test"]})
         with pytest.raises(ServiceValidationError, match="config entry"):
             await async_handle_add_phrases(mock_hass, call)
 
@@ -780,7 +822,7 @@ class TestNoConfigEntry:
         mock_hass.config_entries = MagicMock()
         mock_hass.config_entries.async_entries = MagicMock(return_value=[])
 
-        call = _make_service_call({})
+        call = _make_service_call({"entity_id": ENTITY_ID})
         with pytest.raises(ServiceValidationError, match="config entry"):
             await async_handle_get_correction_config(mock_hass, call)
 
@@ -790,19 +832,16 @@ class TestNoSTTEntity:
 
     @pytest.mark.asyncio
     async def test_test_correction_no_entity_raises(self, mock_hass):
-        """Should raise ServiceValidationError when no STT entity exists."""
+        """Should raise ServiceValidationError when no matching STT entity exists."""
         from homeassistant.exceptions import ServiceValidationError
 
         from custom_components.stt_corrector.services import (
             async_handle_test_correction,
         )
 
-        call = _make_service_call({"text": "hello"})
+        mock_hass.config_entries = MagicMock()
+        mock_hass.config_entries.async_entries = MagicMock(return_value=[])
 
-        # _find_stt_entity internally raises when entity is None
-        with patch(
-            "custom_components.stt_corrector.helpers.find_corrected_stt_entity",
-            return_value=None,
-        ):
-            with pytest.raises(ServiceValidationError, match="STT entity"):
-                await async_handle_test_correction(mock_hass, call)
+        call = _make_service_call({"entity_id": ENTITY_ID, "text": "hello"})
+        with pytest.raises(ServiceValidationError, match="STT entity"):
+            await async_handle_test_correction(mock_hass, call)

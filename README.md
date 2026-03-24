@@ -28,7 +28,7 @@ Each stage can be enabled/disabled independently.
 - **Configurable auto-collect** -- independently toggle collection of exposed entities, devices, areas, and floor names from HA registries
 - **Language-aware matching** -- pinyin for Mandarin Chinese, SequenceMatcher for other languages
 - **Runtime statistics** -- 7 sensor entities tracking usage and correction performance ([details](docs/sensors.md))
-- **Management services** -- 9 services for runtime configuration ([details](docs/services.md))
+- **Management services** -- 9 services for runtime configuration with entity targeting ([details](docs/services.md))
 - **No external API dependencies** -- all correction happens locally using the wrapped entity's transcription output
 
 ## Getting Started

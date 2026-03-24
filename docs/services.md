@@ -2,6 +2,8 @@
 
 All services are persistent -- changes are saved to the config entry and take effect immediately without restart.
 
+All services require an `entity_id` parameter to target a specific STT Corrector instance.
+
 ## Configuration Management
 
 ### `stt_corrector.add_phrases`
@@ -11,6 +13,7 @@ Add phrases to the correction known phrases list (deduplicated).
 ```yaml
 service: stt_corrector.add_phrases
 data:
+  entity_id: stt.groqcloud_whisper_corrected
   phrases:
     - "Living Room Light"
     - "Kitchen Fan"
@@ -24,6 +27,7 @@ Remove phrases from the correction known phrases list.
 ```yaml
 service: stt_corrector.remove_phrases
 data:
+  entity_id: stt.groqcloud_whisper_corrected
   phrases:
     - "Living Room Light"
 ```
@@ -35,6 +39,7 @@ Add or update custom replacement rules (wrong to correct).
 ```yaml
 service: stt_corrector.add_replacements
 data:
+  entity_id: stt.groqcloud_whisper_corrected
   replacements:
     "livin room": "living room"
     "kichen light": "kitchen light"
@@ -47,6 +52,7 @@ Remove replacement rules by key (the "wrong" text).
 ```yaml
 service: stt_corrector.remove_replacements
 data:
+  entity_id: stt.groqcloud_whisper_corrected
   keys:
     - "livin room"
 ```
@@ -58,6 +64,7 @@ Add segments to the correction exclusion list. Excluded segments are never corre
 ```yaml
 service: stt_corrector.add_exclusions
 data:
+  entity_id: stt.groqcloud_whisper_corrected
   exclusions:
     - "pocket"
     - "chicken"
@@ -70,6 +77,7 @@ Remove segments from the correction exclusion list.
 ```yaml
 service: stt_corrector.remove_exclusions
 data:
+  entity_id: stt.groqcloud_whisper_corrected
   exclusions:
     - "pocket"
 ```
@@ -80,6 +88,8 @@ Returns the current correction configuration (response-only service).
 
 ```yaml
 service: stt_corrector.get_correction_config
+data:
+  entity_id: stt.groqcloud_whisper_corrected
 ```
 
 Response:
@@ -100,6 +110,7 @@ Import correction configuration. Accepts the same format as `get_correction_conf
 ```yaml
 service: stt_corrector.set_correction_config
 data:
+  entity_id: stt.groqcloud_whisper_corrected
   custom_phrases: ["Living Room Light", "Kitchen Fan"]
   custom_replacements:
     "livin room": "living room"
@@ -117,6 +128,7 @@ Run text through the correction pipeline with diagnostic output. Shows all candi
 ```yaml
 service: stt_corrector.test_correction
 data:
+  entity_id: stt.groqcloud_whisper_corrected
   text: "turn on the livin room lite"
 ```
 

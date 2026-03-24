@@ -30,27 +30,31 @@ _LOGGER = logging.getLogger(__name__)
 MAX_REPLACEMENT_RULES = 100
 MAX_PHRASE_LIST_SIZE = 500
 
-# Service schemas
+# Service schemas — all require entity_id to target a specific instance
 SCHEMA_PHRASES = vol.Schema(
     {
+        vol.Required("entity_id"): str,
         vol.Required("phrases"): [str],
     }
 )
 
 SCHEMA_ADD_REPLACEMENTS = vol.Schema(
     {
+        vol.Required("entity_id"): str,
         vol.Required("replacements"): {str: str},
     }
 )
 
 SCHEMA_REMOVE_REPLACEMENTS = vol.Schema(
     {
+        vol.Required("entity_id"): str,
         vol.Required("keys"): [str],
     }
 )
 
 SCHEMA_SET_CORRECTION_CONFIG = vol.Schema(
     {
+        vol.Required("entity_id"): str,
         vol.Optional("custom_phrases"): [str],
         vol.Optional("custom_replacements"): {str: str},
         vol.Optional("enable_custom_replacements"): bool,
@@ -62,50 +66,76 @@ SCHEMA_SET_CORRECTION_CONFIG = vol.Schema(
     }
 )
 
-SCHEMA_GET_CORRECTION_CONFIG = vol.Schema({})
+SCHEMA_GET_CORRECTION_CONFIG = vol.Schema(
+    {
+        vol.Required("entity_id"): str,
+    }
+)
 
 SCHEMA_EXCLUSIONS = vol.Schema(
     {
+        vol.Required("entity_id"): str,
         vol.Required("exclusions"): [str],
     }
 )
 
 SCHEMA_TEST_CORRECTION = vol.Schema(
     {
+        vol.Required("entity_id"): str,
         vol.Required("text"): str,
     }
 )
 
 
-def _find_stt_entity(hass: HomeAssistant) -> CorrectedSTTEntity:
-    """Find the first CorrectedSTTEntity, raising if not found."""
-    from .helpers import find_corrected_stt_entity
+def _find_stt_entity(hass: HomeAssistant, entity_id: str) -> CorrectedSTTEntity:
+    """Find a CorrectedSTTEntity by entity_id.
 
-    entity = find_corrected_stt_entity(hass)
-    if entity is None:
-        raise ServiceValidationError(
-            f"No {DOMAIN} STT entity found. Ensure the integration is configured."
-        )
-    return entity
-
-
-def _get_config_entry(hass: HomeAssistant) -> ConfigEntry:
-    """Get the first STT Corrector config entry.
+    Args:
+        hass: Home Assistant instance.
+        entity_id: The entity_id of the target STT Corrector entity.
 
     Raises:
-        ServiceValidationError: If no config entry is found.
+        ServiceValidationError: If no matching entity is found.
     """
-    entries = hass.config_entries.async_entries(DOMAIN)
-    if not entries:
-        raise ServiceValidationError(
-            f"No {DOMAIN} config entry found. Ensure the integration is configured."
-        )
-    return entries[0]
+    from .models import STTCorrectorRuntimeData
+
+    for cfg_entry in hass.config_entries.async_entries(DOMAIN):
+        runtime_data = getattr(cfg_entry, "runtime_data", None)
+        if isinstance(runtime_data, STTCorrectorRuntimeData):
+            if runtime_data.entity.entity_id == entity_id:
+                return runtime_data.entity
+    raise ServiceValidationError(
+        f"No {DOMAIN} STT entity found with entity_id '{entity_id}'."
+    )
 
 
-async def _update_options(hass: HomeAssistant, new_options: dict) -> None:
+def _get_config_entry(hass: HomeAssistant, entity_id: str) -> ConfigEntry:
+    """Get a STT Corrector config entry by entity_id.
+
+    Args:
+        hass: Home Assistant instance.
+        entity_id: The entity_id of the target STT Corrector entity.
+
+    Raises:
+        ServiceValidationError: If no matching config entry is found.
+    """
+    from .models import STTCorrectorRuntimeData
+
+    for cfg_entry in hass.config_entries.async_entries(DOMAIN):
+        runtime_data = getattr(cfg_entry, "runtime_data", None)
+        if isinstance(runtime_data, STTCorrectorRuntimeData):
+            if runtime_data.entity.entity_id == entity_id:
+                return cfg_entry
+    raise ServiceValidationError(
+        f"No {DOMAIN} config entry found for entity_id '{entity_id}'."
+    )
+
+
+async def _update_options(
+    hass: HomeAssistant, new_options: dict, entity_id: str
+) -> None:
     """Persist updated options to the config entry."""
-    entry = _get_config_entry(hass)
+    entry = _get_config_entry(hass, entity_id)
     hass.config_entries.async_update_entry(entry, options=new_options)
 
 
@@ -115,7 +145,7 @@ async def async_handle_test_correction(hass: HomeAssistant, call: ServiceCall) -
     if not text:
         raise ServiceValidationError("text is required and cannot be empty")
 
-    entity = _find_stt_entity(hass)
+    entity = _find_stt_entity(hass, call.data["entity_id"])
 
     result = await entity.async_test_correction(text)
     return {
@@ -146,11 +176,12 @@ async def async_handle_test_correction(hass: HomeAssistant, call: ServiceCall) -
 
 async def async_handle_add_phrases(hass: HomeAssistant, call: ServiceCall) -> None:
     """Add phrases to the custom phrases list (deduplicated)."""
+    entity_id: str = call.data["entity_id"]
     phrases_to_add: list[str] = call.data.get("phrases", [])
     if not phrases_to_add:
         return
 
-    entry = _get_config_entry(hass)
+    entry = _get_config_entry(hass, entity_id)
     current: list[str] = list(entry.options.get(CONF_CUSTOM_PHRASES, []))
 
     if len(current) + len(phrases_to_add) > MAX_PHRASE_LIST_SIZE:
@@ -166,31 +197,33 @@ async def async_handle_add_phrases(hass: HomeAssistant, call: ServiceCall) -> No
             current_set.add(phrase)
 
     new_options = dict(entry.options) | {CONF_CUSTOM_PHRASES: current}
-    await _update_options(hass, new_options)
+    await _update_options(hass, new_options, entity_id)
 
 
 async def async_handle_remove_phrases(hass: HomeAssistant, call: ServiceCall) -> None:
     """Remove phrases from the custom phrases list."""
+    entity_id: str = call.data["entity_id"]
     phrases_to_remove: list[str] = call.data.get("phrases", [])
     if not phrases_to_remove:
         return
 
-    entry = _get_config_entry(hass)
+    entry = _get_config_entry(hass, entity_id)
     remove_set = {p.strip() for p in phrases_to_remove}
     current: list[str] = list(entry.options.get(CONF_CUSTOM_PHRASES, []))
     updated = [p for p in current if p not in remove_set]
 
     new_options = dict(entry.options) | {CONF_CUSTOM_PHRASES: updated}
-    await _update_options(hass, new_options)
+    await _update_options(hass, new_options, entity_id)
 
 
 async def async_handle_add_replacements(hass: HomeAssistant, call: ServiceCall) -> None:
     """Add or update replacement rules (merged into existing)."""
+    entity_id: str = call.data["entity_id"]
     replacements: dict[str, str] = call.data.get("replacements", {})
     if not replacements:
         return
 
-    entry = _get_config_entry(hass)
+    entry = _get_config_entry(hass, entity_id)
     current: dict[str, str] = dict(entry.options.get(CONF_CUSTOM_REPLACEMENTS, {}))
 
     merged_size = len(set(current) | set(replacements))
@@ -202,33 +235,35 @@ async def async_handle_add_replacements(hass: HomeAssistant, call: ServiceCall) 
     current.update(replacements)
 
     new_options = dict(entry.options) | {CONF_CUSTOM_REPLACEMENTS: current}
-    await _update_options(hass, new_options)
+    await _update_options(hass, new_options, entity_id)
 
 
 async def async_handle_remove_replacements(
     hass: HomeAssistant, call: ServiceCall
 ) -> None:
     """Remove replacement rules by key."""
+    entity_id: str = call.data["entity_id"]
     keys: list[str] = call.data.get("keys", [])
     if not keys:
         return
 
-    entry = _get_config_entry(hass)
+    entry = _get_config_entry(hass, entity_id)
     current: dict[str, str] = dict(entry.options.get(CONF_CUSTOM_REPLACEMENTS, {}))
     for key in keys:
         current.pop(key.strip(), None)
 
     new_options = dict(entry.options) | {CONF_CUSTOM_REPLACEMENTS: current}
-    await _update_options(hass, new_options)
+    await _update_options(hass, new_options, entity_id)
 
 
 async def async_handle_add_exclusions(hass: HomeAssistant, call: ServiceCall) -> None:
     """Add segments to the exclusion list (deduplicated)."""
+    entity_id: str = call.data["entity_id"]
     exclusions_to_add: list[str] = call.data.get("exclusions", [])
     if not exclusions_to_add:
         return
 
-    entry = _get_config_entry(hass)
+    entry = _get_config_entry(hass, entity_id)
     current: list[str] = list(entry.options.get(CONF_CUSTOM_EXCLUSIONS, []))
     current_set = set(current)
 
@@ -239,31 +274,32 @@ async def async_handle_add_exclusions(hass: HomeAssistant, call: ServiceCall) ->
             current_set.add(exc)
 
     new_options = dict(entry.options) | {CONF_CUSTOM_EXCLUSIONS: current}
-    await _update_options(hass, new_options)
+    await _update_options(hass, new_options, entity_id)
 
 
 async def async_handle_remove_exclusions(
     hass: HomeAssistant, call: ServiceCall
 ) -> None:
     """Remove segments from the exclusion list."""
+    entity_id: str = call.data["entity_id"]
     exclusions_to_remove: list[str] = call.data.get("exclusions", [])
     if not exclusions_to_remove:
         return
 
-    entry = _get_config_entry(hass)
+    entry = _get_config_entry(hass, entity_id)
     remove_set = {e.strip() for e in exclusions_to_remove}
     current: list[str] = list(entry.options.get(CONF_CUSTOM_EXCLUSIONS, []))
     updated = [e for e in current if e not in remove_set]
 
     new_options = dict(entry.options) | {CONF_CUSTOM_EXCLUSIONS: updated}
-    await _update_options(hass, new_options)
+    await _update_options(hass, new_options, entity_id)
 
 
 async def async_handle_get_correction_config(
     hass: HomeAssistant, call: ServiceCall
 ) -> dict:
     """Return the current correction configuration."""
-    entry = _get_config_entry(hass)
+    entry = _get_config_entry(hass, call.data["entity_id"])
     cfg = CorrectionConfig.from_options(entry.options)
     return {
         "custom_phrases": cfg.custom_phrases,
@@ -280,7 +316,8 @@ async def async_handle_set_correction_config(
 ) -> None:
     """Replace the entire correction configuration."""
     data = dict(call.data)
-    entry = _get_config_entry(hass)
+    entity_id: str = data.pop("entity_id")
+    entry = _get_config_entry(hass, entity_id)
 
     # Validate input limits
     if "custom_replacements" in data:
@@ -310,7 +347,7 @@ async def async_handle_set_correction_config(
     if "custom_exclusions" in data:
         new_options[CONF_CUSTOM_EXCLUSIONS] = list(data["custom_exclusions"])
 
-    await _update_options(hass, new_options)
+    await _update_options(hass, new_options, entity_id)
 
 
 def async_register_services(hass: HomeAssistant) -> None:

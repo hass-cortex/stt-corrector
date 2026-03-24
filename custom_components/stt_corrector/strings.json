@@ -117,6 +117,10 @@
       "name": "Test correction",
       "description": "Test the correction pipeline with diagnostic output.",
       "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "Target STT Corrector entity."
+        },
         "text": {
           "name": "Text",
           "description": "Text to run through the correction pipeline."
@@ -127,6 +131,10 @@
       "name": "Add phrases",
       "description": "Add phrases to the custom phrases list.",
       "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "Target STT Corrector entity."
+        },
         "phrases": {
           "name": "Phrases",
           "description": "List of phrases to add."
@@ -137,6 +145,10 @@
       "name": "Remove phrases",
       "description": "Remove phrases from the custom phrases list.",
       "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "Target STT Corrector entity."
+        },
         "phrases": {
           "name": "Phrases",
           "description": "List of phrases to remove."
@@ -147,6 +159,10 @@
       "name": "Add replacements",
       "description": "Add or update custom replacement rules.",
       "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "Target STT Corrector entity."
+        },
         "replacements": {
           "name": "Replacements",
           "description": "Dictionary of wrong to correct replacement pairs."
@@ -157,6 +173,10 @@
       "name": "Remove replacements",
       "description": "Remove custom replacement rules by key.",
       "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "Target STT Corrector entity."
+        },
         "keys": {
           "name": "Keys",
           "description": "List of replacement keys to remove."
@@ -165,12 +185,22 @@
     },
     "get_correction_config": {
       "name": "Get correction config",
-      "description": "Get the current correction configuration."
+      "description": "Get the current correction configuration.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "Target STT Corrector entity."
+        }
+      }
     },
     "set_correction_config": {
       "name": "Set correction config",
       "description": "Update correction configuration.",
       "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "Target STT Corrector entity."
+        },
         "custom_phrases": { "name": "Custom phrases", "description": "List of phrases." },
         "custom_replacements": { "name": "Custom replacements", "description": "Dictionary of replacement pairs." },
         "enable_custom_replacements": { "name": "Enable replacements", "description": "Enable custom replacement rules." },
@@ -183,6 +213,10 @@
       "name": "Add exclusions",
       "description": "Add segments to the exclusion list.",
       "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "Target STT Corrector entity."
+        },
         "exclusions": { "name": "Exclusions", "description": "List of segments to exclude." }
       }
     },
@@ -190,6 +224,10 @@
       "name": "Remove exclusions",
       "description": "Remove segments from the exclusion list.",
       "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "Target STT Corrector entity."
+        },
         "exclusions": { "name": "Exclusions", "description": "List of segments to remove." }
       }
     }
