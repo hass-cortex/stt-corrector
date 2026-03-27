@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import logging
-from typing import Final
+from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
 
+from .const import DOMAIN
 from .models import STTCorrectorRuntimeData
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+type STTCorrectorConfigEntry = ConfigEntry[STTCorrectorRuntimeData]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,7 +33,17 @@ def _preload_pypinyin() -> None:
     lazy_pinyin("")  # force-load phrases_dict.json
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
+    """Set up STT Corrector integration."""
+    from .services import async_register_services
+
+    async_register_services(hass)
+    return True
+
+
+async def async_setup_entry(
+    hass: HomeAssistant, entry: STTCorrectorConfigEntry
+) -> bool:
     """Set up STT Corrector from a config entry."""
     await hass.async_add_executor_job(_preload_pypinyin)
 
@@ -39,18 +55,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Rebuild corrector when options change (e.g., via services)
     entry.async_on_unload(entry.add_update_listener(_async_update_options))
 
-    # Register services (once per domain)
-    from .const import DOMAIN
-
-    if not hass.services.has_service(DOMAIN, "test_correction"):
-        from .services import async_register_services
-
-        async_register_services(hass)
-
     return True
 
 
-async def _async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
+async def _async_update_options(
+    hass: HomeAssistant, entry: STTCorrectorConfigEntry
+) -> None:
     """Handle options update — rebuild corrector and phrase builder."""
     from .helpers import find_corrected_stt_entity
 
@@ -60,6 +70,8 @@ async def _async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None
         _LOGGER.debug("Rebuilt corrector after options update")
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(
+    hass: HomeAssistant, entry: STTCorrectorConfigEntry
+) -> bool:
     """Unload an STT Corrector config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

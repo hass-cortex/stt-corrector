@@ -84,9 +84,7 @@ uv run cz bump                             # Version bump (auto from commits)
 
 ## Known Issues
 
-- `ruff format` may have false positives on `config_flow.py` (removes parentheses from multi-except, invalid in Python 3). Exclude from ruff format in `pyproject.toml` if needed.
 - Pyright reports many `reportMissingImports` because `homeassistant` is not installed. These are expected -- we use mypy with `ignore_missing_imports = true` instead.
-- `list[DefaultMatcher]` vs `list[PhoneticMatcher]` type variance warning is a known Pyright/mypy limitation (list is invariant). Does not affect runtime.
 
 ## Quality Scale
 

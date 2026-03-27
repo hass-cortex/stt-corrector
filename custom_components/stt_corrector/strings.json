@@ -112,6 +112,23 @@
       }
     }
   },
+  "exceptions": {
+    "entity_not_found": {
+      "message": "No STT Corrector entity found with the specified entity ID."
+    },
+    "config_entry_not_found": {
+      "message": "No STT Corrector config entry found for the specified entity ID."
+    },
+    "text_required": {
+      "message": "Text is required and cannot be empty."
+    },
+    "phrase_list_exceeded": {
+      "message": "Phrase list would exceed the maximum allowed size."
+    },
+    "replacement_rules_exceeded": {
+      "message": "Replacement rules would exceed the maximum allowed count."
+    }
+  },
   "services": {
     "test_correction": {
       "name": "Test correction",

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.sensor import (
     RestoreSensor,
@@ -12,7 +12,6 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -20,6 +19,9 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
 from .models import CorrectionStats, STTCorrectorRuntimeData
+
+if TYPE_CHECKING:
+    from . import STTCorrectorConfigEntry
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -33,8 +35,6 @@ SENSOR_DESCRIPTIONS: tuple[STTCorrectorSensorDescription, ...] = (
     STTCorrectorSensorDescription(
         key="total_requests",
         translation_key="total_requests",
-        name="Total requests",
-        icon="mdi:counter",
         state_class=SensorStateClass.TOTAL_INCREASING,
         entity_category=EntityCategory.DIAGNOSTIC,
         update_fn=lambda cur, s: int(cur or 0) + 1,
@@ -42,8 +42,6 @@ SENSOR_DESCRIPTIONS: tuple[STTCorrectorSensorDescription, ...] = (
     STTCorrectorSensorDescription(
         key="successful_requests",
         translation_key="successful_requests",
-        name="Successful requests",
-        icon="mdi:check-circle",
         state_class=SensorStateClass.TOTAL_INCREASING,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
@@ -54,8 +52,6 @@ SENSOR_DESCRIPTIONS: tuple[STTCorrectorSensorDescription, ...] = (
     STTCorrectorSensorDescription(
         key="failed_requests",
         translation_key="failed_requests",
-        name="Failed requests",
-        icon="mdi:alert-circle",
         state_class=SensorStateClass.TOTAL_INCREASING,
         entity_category=EntityCategory.DIAGNOSTIC,
         update_fn=lambda cur, s: (
@@ -66,8 +62,6 @@ SENSOR_DESCRIPTIONS: tuple[STTCorrectorSensorDescription, ...] = (
     STTCorrectorSensorDescription(
         key="corrections_applied",
         translation_key="corrections_applied",
-        name="Corrections applied",
-        icon="mdi:auto-fix",
         state_class=SensorStateClass.TOTAL_INCREASING,
         entity_category=EntityCategory.DIAGNOSTIC,
         update_fn=lambda cur, s: int(cur or 0) + (1 if s.correction_applied else 0),
@@ -75,8 +69,6 @@ SENSOR_DESCRIPTIONS: tuple[STTCorrectorSensorDescription, ...] = (
     STTCorrectorSensorDescription(
         key="last_raw_text",
         translation_key="last_raw_text",
-        name="Transcribed text",
-        icon="mdi:text",
         update_fn=lambda cur, s: (
             s.raw_text
             if s.result_state == "success"
@@ -86,8 +78,6 @@ SENSOR_DESCRIPTIONS: tuple[STTCorrectorSensorDescription, ...] = (
     STTCorrectorSensorDescription(
         key="last_corrected_text",
         translation_key="last_corrected_text",
-        name="Corrected text",
-        icon="mdi:text-box-check",
         update_fn=lambda cur, s: (
             s.corrected_text
             if s.result_state == "success"
@@ -97,8 +87,6 @@ SENSOR_DESCRIPTIONS: tuple[STTCorrectorSensorDescription, ...] = (
     STTCorrectorSensorDescription(
         key="last_result",
         translation_key="last_result",
-        name="Last result",
-        icon="mdi:check-decagram",
         entity_category=EntityCategory.DIAGNOSTIC,
         options=["success", "no_speech", "error", "wrapped_unavailable"],
         device_class=SensorDeviceClass.ENUM,
@@ -107,8 +95,6 @@ SENSOR_DESCRIPTIONS: tuple[STTCorrectorSensorDescription, ...] = (
     STTCorrectorSensorDescription(
         key="last_language",
         translation_key="last_language",
-        name="Last language",
-        icon="mdi:translate",
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
         update_fn=lambda cur, s: s.language,
@@ -118,7 +104,7 @@ SENSOR_DESCRIPTIONS: tuple[STTCorrectorSensorDescription, ...] = (
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config_entry: STTCorrectorConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up STT Corrector sensors from a config entry."""
@@ -142,7 +128,7 @@ class STTCorrectorSensor(RestoreSensor):
 
     def __init__(
         self,
-        config_entry: ConfigEntry,
+        config_entry: STTCorrectorConfigEntry,
         description: STTCorrectorSensorDescription,
     ) -> None:
         """Initialize the sensor."""

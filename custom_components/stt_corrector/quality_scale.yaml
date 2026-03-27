@@ -1,0 +1,101 @@
+rules:
+  # Bronze
+  action-setup: done
+  appropriate-polling:
+    status: exempt
+    comment: |
+      STT correction is on-demand (pipeline triggers processing), not polling.
+  brands: done
+  common-modules: done
+  config-flow: done
+  config-flow-test-coverage: done
+  dependency-transparency: done
+  docs-actions: done
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: done
+  entity-event-setup: done
+  entity-unique-id: done
+  has-entity-name: done
+  runtime-data: done
+  test-before-configure: done
+  test-before-setup:
+    status: exempt
+    comment: |
+      No external service to validate. Wraps a local HA STT entity.
+  unique-config-entry: done
+
+  # Silver
+  action-exceptions: done
+  config-entry-unloading: done
+  docs-configuration-parameters: done
+  docs-installation-parameters: done
+  entity-unavailable: done
+  integration-owner: done
+  log-when-unavailable: done
+  parallel-updates: done
+  reauthentication-flow:
+    status: exempt
+    comment: |
+      No authentication credentials. Wraps a local HA entity.
+  test-coverage: done
+
+  # Gold
+  devices: done
+  diagnostics: done
+  discovery:
+    status: exempt
+    comment: |
+      Wraps existing HA STT entities, not a discoverable device/service.
+  discovery-update-info:
+    status: exempt
+    comment: |
+      No network discovery.
+  docs-data-update:
+    status: exempt
+    comment: |
+      STT is on-demand (pipeline triggers correction), no periodic data updates.
+  docs-examples: todo
+  docs-known-limitations: done
+  docs-supported-devices:
+    status: exempt
+    comment: |
+      Service integration, not a device integration.
+  docs-supported-functions: done
+  docs-troubleshooting: todo
+  docs-use-cases: done
+  dynamic-devices:
+    status: exempt
+    comment: |
+      Single service device per config entry, no dynamic device creation.
+  entity-category: done
+  entity-device-class: done
+  entity-disabled-by-default: done
+  entity-translations: done
+  exception-translations: done
+  icon-translations: done
+  reconfiguration-flow:
+    status: exempt
+    comment: |
+      Wrapped entity is immutable config data. Options flow covers all settings.
+  repair-issues:
+    status: exempt
+    comment: |
+      No known user-repairable issues requiring repair flows.
+  stale-devices:
+    status: exempt
+    comment: |
+      Single service device per config entry, automatically cleaned up on unload.
+
+  # Platinum
+  async-dependency: done
+  inject-websession:
+    status: exempt
+    comment: |
+      No HTTP calls. Wraps local HA STT entities only.
+  strict-typing:
+    status: exempt
+    comment: |
+      mypy strict enabled with relaxations for untyped HA stubs.
+      Full strict-typing requires homeassistant type stubs which are
+      not available for custom integrations running outside HA.

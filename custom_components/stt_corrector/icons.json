@@ -1,0 +1,41 @@
+{
+  "entity": {
+    "sensor": {
+      "total_requests": {
+        "default": "mdi:counter"
+      },
+      "successful_requests": {
+        "default": "mdi:check-circle"
+      },
+      "failed_requests": {
+        "default": "mdi:alert-circle"
+      },
+      "corrections_applied": {
+        "default": "mdi:auto-fix"
+      },
+      "last_raw_text": {
+        "default": "mdi:text"
+      },
+      "last_corrected_text": {
+        "default": "mdi:text-box-check"
+      },
+      "last_result": {
+        "default": "mdi:check-decagram"
+      },
+      "last_language": {
+        "default": "mdi:translate"
+      }
+    }
+  },
+  "services": {
+    "test_correction": "mdi:test-tube",
+    "add_phrases": "mdi:plus-circle",
+    "remove_phrases": "mdi:minus-circle",
+    "add_replacements": "mdi:swap-horizontal",
+    "remove_replacements": "mdi:swap-horizontal-bold",
+    "get_correction_config": "mdi:cog",
+    "set_correction_config": "mdi:cog-outline",
+    "add_exclusions": "mdi:cancel",
+    "remove_exclusions": "mdi:close-circle-outline"
+  }
+}

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
@@ -105,7 +105,9 @@ def _find_stt_entity(hass: HomeAssistant, entity_id: str) -> CorrectedSTTEntity:
             if runtime_data.entity.entity_id == entity_id:
                 return runtime_data.entity
     raise ServiceValidationError(
-        f"No {DOMAIN} STT entity found with entity_id '{entity_id}'."
+        f"No {DOMAIN} STT entity found with entity_id '{entity_id}'.",
+        translation_domain=DOMAIN,
+        translation_key="entity_not_found",
     )
 
 
@@ -127,23 +129,31 @@ def _get_config_entry(hass: HomeAssistant, entity_id: str) -> ConfigEntry:
             if runtime_data.entity.entity_id == entity_id:
                 return cfg_entry
     raise ServiceValidationError(
-        f"No {DOMAIN} config entry found for entity_id '{entity_id}'."
+        f"No {DOMAIN} config entry found for entity_id '{entity_id}'.",
+        translation_domain=DOMAIN,
+        translation_key="config_entry_not_found",
     )
 
 
 async def _update_options(
-    hass: HomeAssistant, new_options: dict, entity_id: str
+    hass: HomeAssistant, new_options: dict[str, Any], entity_id: str
 ) -> None:
     """Persist updated options to the config entry."""
     entry = _get_config_entry(hass, entity_id)
     hass.config_entries.async_update_entry(entry, options=new_options)
 
 
-async def async_handle_test_correction(hass: HomeAssistant, call: ServiceCall) -> dict:
+async def async_handle_test_correction(
+    hass: HomeAssistant, call: ServiceCall
+) -> dict[str, Any]:
     """Run correction pipeline with diagnostic output."""
     text = call.data.get("text", "")
     if not text:
-        raise ServiceValidationError("text is required and cannot be empty")
+        raise ServiceValidationError(
+            "text is required and cannot be empty",
+            translation_domain=DOMAIN,
+            translation_key="text_required",
+        )
 
     entity = _find_stt_entity(hass, call.data["entity_id"])
 
@@ -186,7 +196,9 @@ async def async_handle_add_phrases(hass: HomeAssistant, call: ServiceCall) -> No
 
     if len(current) + len(phrases_to_add) > MAX_PHRASE_LIST_SIZE:
         raise ServiceValidationError(
-            f"Phrase list would exceed maximum size of {MAX_PHRASE_LIST_SIZE}"
+            f"Phrase list would exceed maximum size of {MAX_PHRASE_LIST_SIZE}",
+            translation_domain=DOMAIN,
+            translation_key="phrase_list_exceeded",
         )
     current_set = set(current)
 
@@ -229,7 +241,9 @@ async def async_handle_add_replacements(hass: HomeAssistant, call: ServiceCall) 
     merged_size = len(set(current) | set(replacements))
     if merged_size > MAX_REPLACEMENT_RULES:
         raise ServiceValidationError(
-            f"Replacement rules would exceed maximum of {MAX_REPLACEMENT_RULES}"
+            f"Replacement rules would exceed maximum of {MAX_REPLACEMENT_RULES}",
+            translation_domain=DOMAIN,
+            translation_key="replacement_rules_exceeded",
         )
 
     current.update(replacements)
@@ -297,7 +311,7 @@ async def async_handle_remove_exclusions(
 
 async def async_handle_get_correction_config(
     hass: HomeAssistant, call: ServiceCall
-) -> dict:
+) -> dict[str, Any]:
     """Return the current correction configuration."""
     entry = _get_config_entry(hass, call.data["entity_id"])
     cfg = CorrectionConfig.from_options(entry.options)
@@ -323,12 +337,16 @@ async def async_handle_set_correction_config(
     if "custom_replacements" in data:
         if len(data["custom_replacements"]) > MAX_REPLACEMENT_RULES:
             raise ServiceValidationError(
-                f"Replacement rules would exceed maximum of {MAX_REPLACEMENT_RULES}"
+                f"Replacement rules would exceed maximum of {MAX_REPLACEMENT_RULES}",
+                translation_domain=DOMAIN,
+                translation_key="replacement_rules_exceeded",
             )
     if "custom_phrases" in data:
         if len(data["custom_phrases"]) > MAX_PHRASE_LIST_SIZE:
             raise ServiceValidationError(
-                f"Phrase list would exceed maximum size of {MAX_PHRASE_LIST_SIZE}"
+                f"Phrase list would exceed maximum size of {MAX_PHRASE_LIST_SIZE}",
+                translation_domain=DOMAIN,
+                translation_key="phrase_list_exceeded",
             )
 
     new_options = dict(entry.options)
@@ -369,13 +387,13 @@ def async_register_services(hass: HomeAssistant) -> None:
     async def _remove_replacements(call: ServiceCall) -> None:
         await async_handle_remove_replacements(hass, call)
 
-    async def _get_correction_config(call: ServiceCall) -> dict:
+    async def _get_correction_config(call: ServiceCall) -> dict[str, Any]:
         return await async_handle_get_correction_config(hass, call)
 
     async def _set_correction_config(call: ServiceCall) -> None:
         await async_handle_set_correction_config(hass, call)
 
-    async def _test_correction(call: ServiceCall) -> dict:
+    async def _test_correction(call: ServiceCall) -> dict[str, Any]:
         return await async_handle_test_correction(hass, call)
 
     async def _add_exclusions(call: ServiceCall) -> None:

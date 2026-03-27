@@ -34,12 +34,13 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
+markers = ["integration: Integration tests requiring external resources"]
 
 [tool.ruff]
 line-length = 88
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "ASYNC"]
+select = ["E", "F", "W", "I", "N", "UP", "ASYNC", "B"]
 ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
@@ -47,10 +48,11 @@ ignore = ["E501"]
 
 [tool.mypy]
 python_version = "3.14"
-warn_return_any = false
-warn_unused_ignores = true
-disallow_untyped_defs = true
+strict = true
 ignore_missing_imports = true
+warn_return_any = false
+disallow_subclassing_any = false
+disallow_untyped_decorators = false
 
 [tool.coverage.run]
 source = ["custom_components"]

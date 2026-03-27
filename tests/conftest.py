@@ -17,6 +17,8 @@ _ha_core = ModuleType("homeassistant.core")
 _ha_config_entries = ModuleType("homeassistant.config_entries")
 _ha_data_entry_flow = ModuleType("homeassistant.data_entry_flow")
 _ha_helpers = ModuleType("homeassistant.helpers")
+_ha_helpers_cv = ModuleType("homeassistant.helpers.config_validation")
+_ha_helpers_cv.config_entry_only_config_schema = lambda domain: {}
 _ha_helpers_er = ModuleType("homeassistant.helpers.entity_registry")
 _ha_helpers_ar = ModuleType("homeassistant.helpers.area_registry")
 _ha_helpers_dr = ModuleType("homeassistant.helpers.device_registry")
@@ -255,6 +257,7 @@ for mod_name, mod in [
     ("homeassistant.config_entries", _ha_config_entries),
     ("homeassistant.data_entry_flow", _ha_data_entry_flow),
     ("homeassistant.helpers", _ha_helpers),
+    ("homeassistant.helpers.config_validation", _ha_helpers_cv),
     ("homeassistant.helpers.entity_registry", _ha_helpers_er),
     ("homeassistant.helpers.area_registry", _ha_helpers_ar),
     ("homeassistant.helpers.device_registry", _ha_helpers_dr),

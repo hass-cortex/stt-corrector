@@ -120,7 +120,7 @@ def _syllable_similarity(syl_a: str, syl_b: str) -> float:
     if init_a and init_a == init_b:
         # Score based on final overlap
         max_len = max(len(final_a), len(final_b), 1)
-        common = sum(a == b for a, b in zip(final_a, final_b))
+        common = sum(a == b for a, b in zip(final_a, final_b, strict=False))
         return 0.3 + 0.3 * (common / max_len) + tone_bonus
 
     return 0.0

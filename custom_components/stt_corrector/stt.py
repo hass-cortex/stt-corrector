@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import AsyncIterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.stt import (
     SpeechMetadata,
@@ -12,7 +12,6 @@ from homeassistant.components.stt import (
     SpeechResultState,
     SpeechToTextEntity,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -24,6 +23,9 @@ from .correction_config import CorrectionConfig
 from .models import CorrectionStats, STTCorrectorRuntimeData
 from .phrase_builder import PhraseBuilder
 
+if TYPE_CHECKING:
+    from . import STTCorrectorConfigEntry
+
 _LOGGER = logging.getLogger(__name__)
 
 PARALLEL_UPDATES = 1
@@ -31,7 +33,7 @@ PARALLEL_UPDATES = 1
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config_entry: STTCorrectorConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up STT Corrector proxy from a config entry."""
@@ -43,7 +45,9 @@ class CorrectedSTTEntity(SpeechToTextEntity):
 
     has_entity_name = True
 
-    def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+    def __init__(
+        self, hass: HomeAssistant, config_entry: STTCorrectorConfigEntry
+    ) -> None:
         self._hass = hass
         self._config_entry = config_entry
         self._attr_unique_id = f"{DOMAIN}_{config_entry.entry_id}"
@@ -74,27 +78,27 @@ class CorrectedSTTEntity(SpeechToTextEntity):
         return wrapped.supported_languages
 
     @property
-    def supported_formats(self) -> list:
+    def supported_formats(self) -> list[Any]:
         wrapped = self._get_wrapped_entity()
         return wrapped.supported_formats if wrapped else []
 
     @property
-    def supported_codecs(self) -> list:
+    def supported_codecs(self) -> list[Any]:
         wrapped = self._get_wrapped_entity()
         return wrapped.supported_codecs if wrapped else []
 
     @property
-    def supported_bit_rates(self) -> list:
+    def supported_bit_rates(self) -> list[Any]:
         wrapped = self._get_wrapped_entity()
         return wrapped.supported_bit_rates if wrapped else []
 
     @property
-    def supported_sample_rates(self) -> list:
+    def supported_sample_rates(self) -> list[Any]:
         wrapped = self._get_wrapped_entity()
         return wrapped.supported_sample_rates if wrapped else []
 
     @property
-    def supported_channels(self) -> list:
+    def supported_channels(self) -> list[Any]:
         wrapped = self._get_wrapped_entity()
         return wrapped.supported_channels if wrapped else []
 
@@ -222,8 +226,8 @@ class CorrectedSTTEntity(SpeechToTextEntity):
             return
 
         # Partition changes by method
-        custom_changes: list = []
-        fuzzy_changes: list = []
+        custom_changes: list[Any] = []
+        fuzzy_changes: list[Any] = []
         for change in correction.changes:
             if change.method == "custom_rule":
                 custom_changes.append(change)
