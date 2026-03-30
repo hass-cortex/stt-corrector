@@ -21,54 +21,119 @@
     "step": {
       "init": {
         "title": "STT Corrector Options",
-        "description": "Configure the correction pipeline stages and phrase sources.",
-        "data": {
-          "correction_stages": "Active Correction Stages",
-          "auto_collect": "Phrase Collection",
+        "menu_options": {
+          "active_processors": "Active Processors",
+          "language_settings": "Language Settings",
+          "phrase_collection": "Phrase Collection",
           "replacements": "Custom Replacements",
           "similarity": "Similarity Matching"
+        }
+      },
+      "active_processors": {
+        "title": "Active Processors",
+        "description": "Select which correction processors to apply after transcription.",
+        "data": {
+          "active_processors": "Active Processors"
         },
         "data_description": {
-          "correction_stages": "Select which correction stages to apply after transcription.",
-          "auto_collect": "Automatically collect phrases from Home Assistant entities.",
-          "replacements": "Define exact-match replacements for common misrecognitions.",
-          "similarity": "Use fuzzy matching to correct near-miss transcriptions."
+          "active_processors": "Processors are executed in order: Language Processing \u2192 Custom Replacements \u2192 Similarity Matching."
+        }
+      },
+      "language_settings": {
+        "title": "Language Settings",
+        "menu_options": {
+          "lang_mandarin": "Chinese (\u4e2d\u6587)",
+          "init": "\u2190 Back"
+        }
+      },
+      "lang_mandarin": {
+        "title": "Chinese (\u4e2d\u6587)",
+        "description": "Configure per-locale Chinese language processing.",
+        "data": {
+          "zh_tw": "zh-TW (\u7e41\u9ad4\u53f0\u7063)",
+          "zh_hk": "zh-HK (\u7e41\u9ad4\u9999\u6e2f)",
+          "zh_cn": "zh-CN (\u7b80\u4f53\u4e2d\u56fd)"
         },
         "sections": {
-          "auto_collect": {
-            "name": "Phrase Collection",
-            "description": "Sources used to automatically build the phrase vocabulary.",
+          "zh_tw": {
+            "name": "zh-TW (\u7e41\u9ad4\u53f0\u7063)",
             "data": {
-              "auto_collect_sources": "Collection Sources",
-              "custom_phrases": "Custom Phrases"
+              "strip_trailing_punctuation": "Strip Trailing Punctuation",
+              "trailing_punctuation": "Punctuation Characters",
+              "script_conversion": "Script Conversion (\u7c21\u2192\u7e41)",
+              "pinyin_matching": "Pinyin Matching"
             },
             "data_description": {
-              "auto_collect_sources": "Select which Home Assistant sources to collect phrases from.",
-              "custom_phrases": "Additional phrases to include in the vocabulary (one per entry)."
+              "strip_trailing_punctuation": "Remove sentence-ending punctuation from STT output.",
+              "trailing_punctuation": "Characters to strip from end of text.",
+              "script_conversion": "Convert simplified Chinese to traditional (Taiwan).",
+              "pinyin_matching": "Use pinyin similarity for fuzzy matching."
             }
           },
-          "replacements": {
-            "name": "Custom Replacements",
-            "description": "Define exact-match replacements. Format: wrong=correct",
+          "zh_hk": {
+            "name": "zh-HK (\u7e41\u9ad4\u9999\u6e2f)",
             "data": {
-              "custom_replacements": "Replacement Pairs"
+              "strip_trailing_punctuation": "Strip Trailing Punctuation",
+              "trailing_punctuation": "Punctuation Characters",
+              "script_conversion": "Script Conversion (\u7c21\u2192\u7e41)",
+              "pinyin_matching": "Pinyin Matching"
             },
             "data_description": {
-              "custom_replacements": "Enter pairs as 'wrong=correct', one per line."
+              "strip_trailing_punctuation": "Remove sentence-ending punctuation from STT output.",
+              "trailing_punctuation": "Characters to strip from end of text.",
+              "script_conversion": "Convert simplified Chinese to traditional (Hong Kong).",
+              "pinyin_matching": "Use pinyin similarity for fuzzy matching."
             }
           },
-          "similarity": {
-            "name": "Similarity Matching",
-            "description": "Configure fuzzy matching for near-miss corrections.",
+          "zh_cn": {
+            "name": "zh-CN (\u7b80\u4f53\u4e2d\u56fd)",
             "data": {
-              "fuzzy_threshold": "Similarity Threshold",
-              "custom_exclusions": "Exclusions"
+              "strip_trailing_punctuation": "Strip Trailing Punctuation",
+              "trailing_punctuation": "Punctuation Characters",
+              "script_conversion": "Script Conversion (\u7e41\u2192\u7c21)",
+              "pinyin_matching": "Pinyin Matching"
             },
             "data_description": {
-              "fuzzy_threshold": "Minimum similarity score (0.5–1.0) to accept a correction.",
-              "custom_exclusions": "Words or phrases to exclude from similarity matching."
+              "strip_trailing_punctuation": "Remove sentence-ending punctuation from STT output.",
+              "trailing_punctuation": "Characters to strip from end of text.",
+              "script_conversion": "Convert traditional Chinese to simplified.",
+              "pinyin_matching": "Use pinyin similarity for fuzzy matching."
             }
           }
+        }
+      },
+      "phrase_collection": {
+        "title": "Phrase Collection",
+        "description": "Sources used to automatically build the phrase vocabulary.",
+        "data": {
+          "auto_collect_sources": "Collection Sources",
+          "custom_phrases": "Custom Phrases"
+        },
+        "data_description": {
+          "auto_collect_sources": "Select which Home Assistant sources to collect phrases from.",
+          "custom_phrases": "Additional phrases to include in the vocabulary (one per entry)."
+        }
+      },
+      "replacements": {
+        "title": "Custom Replacements",
+        "description": "Define exact-match replacements. Format: wrong=correct",
+        "data": {
+          "custom_replacements": "Replacement Pairs"
+        },
+        "data_description": {
+          "custom_replacements": "Enter pairs as 'wrong=correct', one per line."
+        }
+      },
+      "similarity": {
+        "title": "Similarity Matching",
+        "description": "Configure fuzzy matching for near-miss corrections.",
+        "data": {
+          "fuzzy_threshold": "Similarity Threshold",
+          "custom_exclusions": "Exclusions"
+        },
+        "data_description": {
+          "fuzzy_threshold": "Minimum similarity score (0.5\u20131.0) to accept a correction.",
+          "custom_exclusions": "Words or phrases to exclude from similarity matching."
         }
       }
     }

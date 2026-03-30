@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, Final
 
@@ -33,6 +34,17 @@ def _preload_pypinyin() -> None:
     lazy_pinyin("")  # force-load phrases_dict.json
 
 
+def _preload_opencc() -> None:
+    """Pre-load OpenCC in executor to avoid blocking I/O in event loop.
+
+    OpenCC reads conversion tables on first use, which triggers blocking I/O.
+    Loading here (in a thread) ensures subsequent calls are instant.
+    """
+    from opencc import OpenCC
+
+    OpenCC("s2tw")  # force-load conversion tables
+
+
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Set up STT Corrector integration."""
     from .services import async_register_services
@@ -45,7 +57,10 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: STTCorrectorConfigEntry
 ) -> bool:
     """Set up STT Corrector from a config entry."""
-    await hass.async_add_executor_job(_preload_pypinyin)
+    await asyncio.gather(
+        hass.async_add_executor_job(_preload_pypinyin),
+        hass.async_add_executor_job(_preload_opencc),
+    )
 
     entry.runtime_data = STTCorrectorRuntimeData()
 

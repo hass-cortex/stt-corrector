@@ -11,12 +11,13 @@ from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import ServiceValidationError
 
 from .const import (
+    CONF_ACTIVE_PROCESSORS,
     CONF_CUSTOM_EXCLUSIONS,
     CONF_CUSTOM_PHRASES,
     CONF_CUSTOM_REPLACEMENTS,
-    CONF_ENABLE_CUSTOM_REPLACEMENTS,
-    CONF_ENABLE_FUZZY_MATCHING,
     CONF_FUZZY_THRESHOLD,
+    CORRECTION_PROCESSOR_REPLACEMENTS,
+    CORRECTION_PROCESSOR_SIMILARITY,
     DOMAIN,
 )
 from .correction_config import CorrectionConfig
@@ -354,12 +355,31 @@ async def async_handle_set_correction_config(
         new_options[CONF_CUSTOM_PHRASES] = list(data["custom_phrases"])
     if "custom_replacements" in data:
         new_options[CONF_CUSTOM_REPLACEMENTS] = dict(data["custom_replacements"])
-    if "enable_custom_replacements" in data:
-        new_options[CONF_ENABLE_CUSTOM_REPLACEMENTS] = bool(
-            data["enable_custom_replacements"]
-        )
-    if "enable_fuzzy_matching" in data:
-        new_options[CONF_ENABLE_FUZZY_MATCHING] = bool(data["enable_fuzzy_matching"])
+    if "enable_custom_replacements" in data or "enable_fuzzy_matching" in data:
+        current = list(new_options.get(CONF_ACTIVE_PROCESSORS, []))
+        if "enable_custom_replacements" in data:
+            if (
+                data["enable_custom_replacements"]
+                and CORRECTION_PROCESSOR_REPLACEMENTS not in current
+            ):
+                current.append(CORRECTION_PROCESSOR_REPLACEMENTS)
+            elif (
+                not data["enable_custom_replacements"]
+                and CORRECTION_PROCESSOR_REPLACEMENTS in current
+            ):
+                current.remove(CORRECTION_PROCESSOR_REPLACEMENTS)
+        if "enable_fuzzy_matching" in data:
+            if (
+                data["enable_fuzzy_matching"]
+                and CORRECTION_PROCESSOR_SIMILARITY not in current
+            ):
+                current.append(CORRECTION_PROCESSOR_SIMILARITY)
+            elif (
+                not data["enable_fuzzy_matching"]
+                and CORRECTION_PROCESSOR_SIMILARITY in current
+            ):
+                current.remove(CORRECTION_PROCESSOR_SIMILARITY)
+        new_options[CONF_ACTIVE_PROCESSORS] = current
     if "fuzzy_threshold" in data:
         new_options[CONF_FUZZY_THRESHOLD] = float(data["fuzzy_threshold"])
     if "custom_exclusions" in data:

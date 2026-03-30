@@ -154,3 +154,6 @@ class TestUpdateOptions:
 
         # Should not raise
         await _async_update_options(mock_hass, entry)
+
+        # async_update_entry should NOT have been called
+        mock_hass.config_entries.async_update_entry.assert_not_called()

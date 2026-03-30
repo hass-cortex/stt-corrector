@@ -11,6 +11,8 @@ class CorrectionMethod(StrEnum):
 
     CUSTOM_RULE = "custom_rule"
     FUZZY_MATCH = "fuzzy_match"
+    SCRIPT_CONVERSION = "script_conversion"
+    PUNCTUATION_STRIP = "punctuation_strip"
 
 
 @dataclass(slots=True)

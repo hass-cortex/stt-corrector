@@ -9,10 +9,15 @@ from __future__ import annotations
 
 import re
 from itertools import zip_longest
+from typing import Any
 
 from pypinyin import Style, lazy_pinyin
 
 from ..matchers import PhoneticMatcher
+from ..processors.base import TextProcessor
+from ..processors.punctuation import TrailingPunctuationStripper
+from ..types import CorrectionChange, CorrectionMethod
+from . import LanguageModule, normalize_locale
 
 # ---------------------------------------------------------------------------
 # Pinyin similarity helpers
@@ -160,6 +165,69 @@ def pinyin_similarity(text_a: str, text_b: str) -> float:
 
 
 # ---------------------------------------------------------------------------
+# ChineseScriptConverter — Language Processing processor for script conversion
+# ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# OpenCC converter cache (immutable conversion tables, safe to reuse)
+# ---------------------------------------------------------------------------
+
+_opencc_cache: dict[str, Any] = {}
+
+
+def _get_opencc(mode: str) -> Any:
+    """Get or create a cached OpenCC converter instance."""
+    if mode not in _opencc_cache:
+        from opencc import OpenCC
+
+        _opencc_cache[mode] = OpenCC(mode)
+    return _opencc_cache[mode]
+
+
+class ChineseScriptConverter(TextProcessor):
+    """Chinese simplified/traditional script conversion using OpenCC.
+
+    Converts text between simplified and traditional Chinese at the
+    character level (e.g., "开灯" -> "開燈" for s2tw mode).
+
+    Supported modes:
+        s2tw  - Simplified -> Traditional (Taiwan, character-level)
+        s2hk  - Simplified -> Traditional (Hong Kong)
+        t2s   - Traditional -> Simplified
+    """
+
+    def __init__(self, mode: str) -> None:
+        self._converter = _get_opencc(mode)
+        self._mode = mode
+
+    def process(self, text: str) -> tuple[str, list[CorrectionChange]]:
+        """Convert text between simplified and traditional Chinese.
+
+        Args:
+            text: Input text to convert.
+
+        Returns:
+            Tuple of (converted_text, list_of_changes).
+        """
+        if not text:
+            return text, []
+
+        converted = self._converter.convert(text)
+        if converted == text:
+            return text, []
+
+        return converted, [
+            CorrectionChange(
+                original_segment=text,
+                corrected_segment=converted,
+                method=CorrectionMethod.SCRIPT_CONVERSION,
+                confidence=1.0,
+            )
+        ]
+
+
+# ---------------------------------------------------------------------------
 # PinyinMatcher — PhoneticMatcher subclass for CJK text
 # ---------------------------------------------------------------------------
 
@@ -193,3 +261,98 @@ class PinyinMatcher(PhoneticMatcher):
                 if end <= len(text):
                     result.append((start, end))
         return result
+
+
+# ---------------------------------------------------------------------------
+# MandarinModule — LanguageModule subclass for Chinese locales
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Mandarin module constants
+# ---------------------------------------------------------------------------
+
+# Per-locale setting names
+SETTING_STRIP_TRAILING_PUNCTUATION = "strip_trailing_punctuation"
+SETTING_TRAILING_PUNCTUATION = "trailing_punctuation"
+SETTING_SCRIPT_CONVERSION = "script_conversion"
+SETTING_PINYIN_MATCHING = "pinyin_matching"
+
+_SETTINGS: list[str] = [
+    SETTING_STRIP_TRAILING_PUNCTUATION,
+    SETTING_TRAILING_PUNCTUATION,
+    SETTING_SCRIPT_CONVERSION,
+    SETTING_PINYIN_MATCHING,
+]
+
+# OpenCC mode mapping: normalized locale -> conversion mode
+_OPENCC_MODES: dict[str, str] = {
+    "zh-tw": "s2tw",
+    "zh-hk": "s2hk",
+    "zh-cn": "t2s",
+}
+
+# Shared base config (zh-cn overrides script_conversion to False)
+_BASE_LOCALE_CONFIG: dict[str, Any] = {
+    SETTING_STRIP_TRAILING_PUNCTUATION: True,
+    SETTING_TRAILING_PUNCTUATION: "。",
+    SETTING_SCRIPT_CONVERSION: True,
+    SETTING_PINYIN_MATCHING: True,
+}
+
+_LOCALES = ("zh-TW", "zh-HK", "zh-CN")
+
+
+class MandarinModule(LanguageModule):
+    """Chinese language module with script conversion and pinyin matching.
+
+    Handles zh-TW, zh-HK, and zh-CN locales with:
+    - Language Processing: Trailing punctuation stripping + script conversion (OpenCC)
+    - Similarity Matching: Pinyin-based phonetic matching for similarity correction
+    """
+
+    def locales(self) -> tuple[str, ...]:
+        return _LOCALES
+
+    def module_key(self) -> str:
+        return "mandarin"
+
+    def menu_label(self) -> str:
+        return "Chinese (中文)"
+
+    def default_config(self) -> dict[str, dict[str, Any]]:
+        return {
+            "zh-tw": dict(_BASE_LOCALE_CONFIG),
+            "zh-hk": dict(_BASE_LOCALE_CONFIG),
+            "zh-cn": {**_BASE_LOCALE_CONFIG, SETTING_SCRIPT_CONVERSION: False},
+        }
+
+    def get_processors(
+        self, locale: str, config: dict[str, dict[str, Any]]
+    ) -> list[TextProcessor]:
+        normalized = normalize_locale(locale)
+        locale_cfg = config.get(normalized, {})
+        processors: list[TextProcessor] = []
+
+        if locale_cfg.get(SETTING_STRIP_TRAILING_PUNCTUATION, True):
+            punctuation = locale_cfg.get(SETTING_TRAILING_PUNCTUATION, "。")
+            if punctuation:
+                processors.append(TrailingPunctuationStripper(punctuation))
+
+        if locale_cfg.get(SETTING_SCRIPT_CONVERSION, False):
+            mode = _OPENCC_MODES.get(normalized)
+            if mode is not None:
+                processors.append(ChineseScriptConverter(mode))
+
+        return processors
+
+    def get_matcher(
+        self, locale: str, config: dict[str, dict[str, Any]]
+    ) -> PinyinMatcher | None:
+        normalized = normalize_locale(locale)
+        locale_cfg = config.get(normalized, {})
+        if not locale_cfg.get(SETTING_PINYIN_MATCHING, True):
+            return None
+        return PinyinMatcher()
+
+    def config_schema(self) -> dict[str, list[str]]:
+        return {normalize_locale(loc): list(_SETTINGS) for loc in _LOCALES}

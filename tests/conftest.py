@@ -98,6 +98,9 @@ class _MockOptionsFlow:
     def async_create_entry(self, **kwargs):
         return {"type": "create_entry", **kwargs}
 
+    def async_show_menu(self, **kwargs):
+        return {"type": "menu", **kwargs}
+
     @staticmethod
     def add_suggested_values_to_schema(schema, suggested_values):
         return schema

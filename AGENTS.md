@@ -4,7 +4,7 @@ Instructions for AI coding agents working on this repository.
 
 ## Project Overview
 
-Home Assistant custom integration that wraps any STT entity with a two-stage post-recognition correction pipeline. Acts as a proxy -- audio goes through the wrapped STT entity unchanged, then the transcribed text is corrected using custom replacements and fuzzy/phonetic similarity matching. Single-package repo (not a monorepo). Distributed as a HACS custom integration.
+Home Assistant custom integration that wraps any STT entity with a three-processor post-recognition correction pipeline: Language Processing, Custom Replacements, and Similarity Matching (fuzzy/phonetic). Acts as a proxy -- audio goes through the wrapped STT entity unchanged, then the transcribed text is corrected. Single-package repo (not a monorepo). Distributed as a HACS custom integration.
 
 ## Tech Stack
 
@@ -31,13 +31,18 @@ custom_components/stt_corrector/
 ├── models.py            # STTCorrectorRuntimeData + CorrectionStats dataclasses
 ├── const.py             # Constants, defaults, config keys
 ├── correction/          # Internal correction library (language-agnostic pipeline)
-│   ├── corrector.py       # SpeechCorrector -- orchestrates two-stage pipeline
+│   ├── corrector.py       # SpeechCorrector -- orchestrates three-processor pipeline
 │   ├── fuzzy_matcher.py   # FuzzyMatcher -- sliding window + similarity scoring
 │   ├── matchers.py        # PhoneticMatcher ABC + DefaultMatcher (SequenceMatcher fallback)
-│   ├── registry.py        # Locale-to-matcher mapping (add new languages here)
+│   ├── registry.py        # MatcherRegistry -- delegates to LanguageModuleRegistry
 │   ├── types.py           # CorrectionMethod, CorrectionChange, CorrectionResult, DiagnosticResult
+│   ├── processors/        # Language processors
+│   │   ├── base.py          # LanguageProcessor ABC
+│   │   └── punctuation.py   # TrailingPunctuationStripper
 │   └── languages/
-│       └── mandarin.py    # PinyinMatcher + syllable-level pinyin similarity
+│       ├── __init__.py      # LanguageModule ABC + normalize_locale()
+│       ├── registry.py      # LanguageModuleRegistry
+│       └── mandarin.py      # MandarinModule + PinyinMatcher + ChineseScriptConverter
 ├── services.yaml        # Service UI definitions
 ├── strings.json         # UI strings (source of truth)
 └── translations/en.json # English translations (must match strings.json)
@@ -50,8 +55,11 @@ custom_components/stt_corrector/
 - **runtime_data**: Uses typed `STTCorrectorRuntimeData` dataclass (in `models.py`). Access entity via `runtime_data.entity`, sensors via `runtime_data.sensors`. Use `helpers.find_corrected_stt_entity()` to retrieve the STT entity.
 - **Sensor push updates**: STT entity calls `_notify_sensors()` after each proxy invocation. Sensors use `RestoreSensor` for state persistence across restarts.
 - **Wrapped entity resolution**: Tracked by entity registry ID (not entity_id string) to survive entity_id renames.
-- **Corrector lifecycle**: `SpeechCorrector` is rebuilt when the audio locale changes (different locale may require different phonetic matchers). Phrases are updated on the existing corrector before each correction.
-- **PhoneticMatcher**: Abstract base with `supports()`, `similarity()`, `windows()`. Add new language matchers by subclassing in `correction/languages/` and registering in `registry.py` -- no core changes needed. See [Adding a New Language Matcher](#adding-a-new-language-matcher).
+- **Three-processor correction pipeline**: Language Processing (punctuation stripping, script conversion) → Custom Replacements → Similarity Matching. Processors are independently toggleable.
+- **LanguageModule framework**: Each language is a self-contained module (`correction/languages/`) providing processors (Language Processing), matchers (Similarity Matching), config schema, and per-locale defaults. Add new languages by subclassing `LanguageModule` and registering in `LanguageModuleRegistry`.
+- **Corrector lifecycle**: `SpeechCorrector` is rebuilt when the audio locale changes. Phrases are updated on the existing corrector before each correction.
+- **Locale normalization**: Always use `normalize_locale()` from `correction.languages` when comparing or looking up locale codes. HA Voice Pipeline and different STT engines send locales in inconsistent formats (`zh-TW`, `zh_tw`, `zh_TW`, `zh-tw`). The normalizer lowercases and converts underscores to hyphens (`zh-tw`). All config keys use this normalized format.
+- **PhoneticMatcher**: Abstract base with `supports()`, `similarity()`, `windows()`. Now provided by `LanguageModule.get_matcher()` rather than direct registry lookup.
 - **PhraseBuilder**: Event-driven cache invalidation via entity/area/device/floor registry event subscriptions. Auto-collect sources (floors, areas, devices, exposed entities) are independently configurable via `CONF_AUTO_COLLECT_SOURCES`.
 
 ## Development Commands
@@ -128,63 +136,100 @@ git push origin main --follow-tags
 
 `cz bump` automatically: updates version in `pyproject.toml` + `manifest.json`, syncs `uv.lock` (via `pre_bump_hooks`), creates commit + annotated tag.
 
-## Adding a New Language Matcher
+## Adding a New Language Module
 
-To add phonetic correction for a new language, only two files need changes:
+To add language-specific processing for a new language, two files need changes:
 
-### Step 1: Create the matcher (`correction/languages/<language>.py`)
+### Step 1: Create the language module (`correction/languages/<language>.py`)
 
-Subclass `PhoneticMatcher` and implement three methods:
+Subclass `LanguageModule` and implement all abstract methods. See `mandarin.py` as reference.
 
 ```python
-"""<Language> phonetic matching for STT correction."""
+"""<Language> processing module for STT correction."""
 
 from __future__ import annotations
-
+from typing import Any
+from . import LanguageModule, normalize_locale
 from ..matchers import PhoneticMatcher
+from ..processors.base import LanguageProcessor
 
+class <Language>Module(LanguageModule):
+    def locales(self) -> tuple[str, ...]:
+        return ("<locale-1>", "<locale-2>")
 
-class <Language>Matcher(PhoneticMatcher):
+    def module_key(self) -> str:
+        return "<language>"
 
-    def supports(self, text: str) -> bool:
-        """Return True if text contains characters this matcher handles."""
+    def menu_label(self) -> str:
+        return "<Display Name>"
 
-    def similarity(self, text_a: str, text_b: str) -> float:
-        """Compute phonetic similarity (0.0-1.0) between two strings."""
+    def default_config(self) -> dict[str, dict[str, Any]]:
+        return {"<locale-1>": {"<setting>": True}, ...}
 
-    def windows(self, text: str, phrase: str) -> list[tuple[int, int]]:
-        """Generate (start, end) sliding window positions for matching."""
+    def get_processors(self, locale, config) -> list[LanguageProcessor]:
+        normalized = normalize_locale(locale)
+        locale_cfg = config.get(normalized, {})
+        # Return processors based on locale_cfg settings
+        return []
+
+    def get_matcher(self, locale, config) -> PhoneticMatcher | None:
+        normalized = normalize_locale(locale)
+        locale_cfg = config.get(normalized, {})
+        # Return matcher or None
+        return None
+
+    def config_schema(self) -> dict[str, list[str]]:
+        return {"<locale-1>": ["<setting1>", "<setting2>"], ...}
 ```
 
-| Method | Purpose | Example (Mandarin) |
-|--------|---------|-------------------|
-| `supports()` | Detect if text belongs to this language | CJK unicode range check |
-| `similarity()` | Phonetic similarity score | Pinyin syllable comparison |
-| `windows()` | Sliding window strategy | Character-level for CJK, word-level for alphabetic |
+### Step 2: Register in `correction/languages/registry.py`
 
-See `correction/languages/mandarin.py` as a reference implementation.
-
-### Step 2: Register in `correction/registry.py`
-
-Add one entry to `MatcherRegistry._language_matchers`:
+Add one entry to `LanguageModuleRegistry._modules`:
 
 ```python
-from .languages.<language> import <Language>Matcher
+from .languages.<language> import <Language>Module
 
-class MatcherRegistry:
-    _language_matchers: list[tuple[tuple[str, ...], type[PhoneticMatcher]]] = [
-        (("zh-CN", "zh-TW"), PinyinMatcher),
-        (("ja",), <Language>Matcher),  # <-- add here
-    ]
+class LanguageModuleRegistry:
+    _modules: list[LanguageModule] = [MandarinModule(), <Language>Module()]
 ```
 
-The tuple contains BCP-47 locale prefixes that activate this matcher. `DefaultMatcher` is always appended as fallback -- do not add it here.
+### Step 3: Add config flow step + strings
+
+1. Add `async_step_lang_<key>` method in `config_flow.py` (delegates to `_handle_language_step`)
+2. Add strings for the new step in `strings.json` and `translations/en.json`
 
 ### What NOT to change
 
 - `matchers.py` -- ABC and DefaultMatcher only
 - `corrector.py`, `fuzzy_matcher.py` -- pipeline core, language-agnostic
-- `stt.py` -- delegates to registry, no matcher knowledge
+- `stt.py` -- delegates to LanguageModuleRegistry, no language-specific knowledge
+
+## Locale Handling
+
+**CRITICAL:** Always use `normalize_locale()` from `correction.languages` when comparing or looking up locale codes.
+
+HA Voice Pipeline and STT engines send locales in inconsistent formats:
+- `zh-TW` (BCP-47 standard, hyphen, mixed case)
+- `zh_TW` (underscore separator)
+- `zh-tw` (lowercase)
+- `zh_tw` (underscore + lowercase)
+
+`normalize_locale()` converts all formats to lowercase with hyphen: `zh-tw`. All config keys and internal lookups use this normalized format.
+
+**DO NOT** use `.lower()` alone -- it doesn't handle underscore separators.
+
+## Documentation Updates
+
+When adding features or changing behavior, update these files:
+
+| File | What to update |
+|------|---------------|
+| `README.md` | Feature list, pipeline diagram, config options table, FAQ |
+| `docs/correction-pipeline.md` | Pipeline processors, worked examples |
+| `docs/sensors.md` | If adding/changing sensor entities |
+| `docs/services.md` | If adding/changing services |
+| `AGENTS.md` | Architecture section, adding language guide, conventions |
+| `strings.json` + `translations/en.json` | UI strings (must be kept in sync) |
 
 ## Do NOT
 
@@ -193,3 +238,4 @@ The tuple contains BCP-47 locale prefixes that activate this matcher. `DefaultMa
 - Modify `translations/en.json` without updating `strings.json` (or vice versa)
 - Create nested wrappers -- config flow filters out `stt_corrector` entities from the wrapped entity selector
 - Track wrapped entity by entity_id string -- always use entity registry ID
+- Add features without updating documentation (README.md, docs/, AGENTS.md)

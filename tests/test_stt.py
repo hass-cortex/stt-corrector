@@ -84,16 +84,18 @@ class TestCorrectedSTTEntityProxy:
         mock_correction.original = "hello"
         mock_correction.changes = []
         mock_correction.candidates = []
-        entity._corrector = MagicMock()
-        entity._corrector.diagnose.return_value = mock_correction
+        mock_corrector = MagicMock()
+        mock_corrector.diagnose.return_value = mock_correction
+        entity._corrector = mock_corrector
 
-        with patch.object(entity, "_get_wrapped_entity", return_value=wrapped):
-            with patch.object(entity, "_phrase_builder") as mock_pb:
-                mock_pb.build = AsyncMock(return_value=["phrase1"])
-                metadata = MagicMock(language="en-US")
-                result = await entity.async_process_audio_stream(
-                    metadata, _audio_stream()
-                )
+        with patch.object(entity, "_build_corrector", return_value=mock_corrector):
+            with patch.object(entity, "_get_wrapped_entity", return_value=wrapped):
+                with patch.object(entity, "_phrase_builder") as mock_pb:
+                    mock_pb.build = AsyncMock(return_value=["phrase1"])
+                    metadata = MagicMock(language="en-US")
+                    result = await entity.async_process_audio_stream(
+                        metadata, _audio_stream()
+                    )
 
         assert result.text == "hello corrected"
 

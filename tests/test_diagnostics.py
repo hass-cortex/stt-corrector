@@ -16,7 +16,9 @@ def _make_entry(data: dict | None = None, options: dict | None = None) -> MagicM
     """Create a mock config entry."""
     entry = MagicMock()
     entry.data = data or {"wrapped_entity_id": "stt.azure_stt"}
-    entry.options = options or {"enable_fuzzy_matching": True}
+    entry.options = options or {
+        "active_processors": ["language_processing", "replacements", "similarity"]
+    }
     entry.runtime_data = STTCorrectorRuntimeData()
     return entry
 
@@ -33,7 +35,7 @@ class TestDiagnostics:
         result = await async_get_config_entry_diagnostics(hass, entry)
 
         assert result["config_entry"]["data"]["wrapped_entity_id"] == "stt.azure_stt"
-        assert result["config_entry"]["options"]["enable_fuzzy_matching"] is True
+        assert "similarity" in result["config_entry"]["options"]["active_processors"]
 
     @pytest.mark.asyncio
     async def test_structure(self):

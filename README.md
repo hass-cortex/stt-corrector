@@ -6,30 +6,50 @@
 [![GitHub License](https://img.shields.io/github/license/hass-cortex/stt-corrector)](https://github.com/hass-cortex/stt-corrector/blob/main/LICENSE)
 [![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/hass-cortex/stt-corrector)
 
-A Home Assistant custom integration that wraps any STT (speech-to-text) entity with a post-recognition correction pipeline for improved voice command accuracy.
+A Home Assistant custom integration that wraps any STT (speech-to-text) entity with a three-processor correction pipeline for improved voice command accuracy.
 
 ```
-Audio --► Wrapped STT Entity --► Raw Text --► Custom Replacements --► Similarity Matching --► Final Text
-          (Azure, Whisper,                       (Stage 1)               (Stage 2)
-           Google, etc.)
+                        +------------------+
+Audio -----> Wrapped STT -----> Raw Text -----> Correction Pipeline -----> Final Text
+             (Azure, Whisper,                   |                          |
+              Google, etc.)                     |  1. Language Processing   |
+                                                |  2. Custom Replacements  |
+                                                |  3. Similarity Matching  |
+                                                +--------------------------+
 ```
 
-| Stage | When | What |
-|-------|------|------|
-| **1. Custom Replacements** | After STT | User-defined `wrong=correct` substitution rules |
-| **2. Similarity Matching** | After STT | Fuzzy/phonetic matching against known phrases (pinyin for Chinese) |
+**Example (Chinese zh-TW pipeline):** Area `客廳`, device `循環扇`, custom rule `循環3=循環扇`
 
-Each stage can be enabled/disabled independently.
+| Processor | Input | Output | What happened |
+|-----------|-------|--------|---------------|
+| Raw STT output | | `打开客听循环3。` | Simplified, `听`(聽) instead of `厅`(廳), `3`(sān) instead of `扇`(shàn), trailing `。` |
+| Language Processing | `打开客听循环3。` | `打開客聽循環3` | Stripped `。`, converted simplified to traditional (s2tw: character-level) |
+| Custom Replacements | `打開客聽循環3` | `打開客聽循環扇` | Rule `循環3=循環扇` matched |
+| Similarity Matching | `打開客聽循環扇` | `打開客廳循環扇` | Pinyin matched `客聽` to area name `客廳` (score 0.85) |
+
+**Example (English pipeline):**
+
+| Processor | Input | Output | What happened |
+|-----------|-------|--------|---------------|
+| Raw STT output | | `turn on the livin room lite` | |
+| Language Processing | `turn on the livin room lite` | `turn on the livin room lite` | No English processing configured |
+| Custom Replacements | `turn on the livin room lite` | `turn on the livin room lite` | No replacement rules matched |
+| Similarity Matching | `turn on the livin room lite` | `turn on the living room light` | Fuzzy matched "livin room lite" to known phrase "living room light" |
+
+Each processor can be enabled or disabled independently. See [Correction Pipeline](docs/correction-pipeline.md) for details.
 
 ## Features
 
-- **Wraps any STT entity** -- Azure, Whisper, Google Cloud, or any other HA STT provider, without modifying it
-- **Two-stage correction pipeline** -- custom replacements and fuzzy/phonetic similarity matching
-- **Configurable auto-collect** -- independently toggle collection of exposed entities, devices, areas, and floor names from HA registries
-- **Language-aware matching** -- pinyin for Mandarin Chinese, SequenceMatcher for other languages
+- **Wraps any STT entity** -- works with Azure, Whisper, Google Cloud, or any other HA STT provider without modifying it
+- **Three-processor correction pipeline** -- Language Processing, Custom Replacements, and Similarity Matching, each independently toggleable
+- **Chinese language support** -- script conversion (simplified/traditional via OpenCC), trailing punctuation stripping, and pinyin-based phonetic matching
+- **Configurable per locale** -- each Chinese locale (zh-TW, zh-HK, zh-CN) has its own settings for script conversion, punctuation, and pinyin matching
+- **Auto-collected phrase vocabulary** -- independently toggle collection from exposed entities, devices, areas, and floors
+- **Language-aware matching** -- pinyin syllable comparison for Chinese, SequenceMatcher for other languages
 - **Runtime statistics** -- 7 sensor entities tracking usage and correction performance ([details](docs/sensors.md))
 - **Management services** -- 9 services for runtime configuration with entity targeting ([details](docs/services.md))
-- **No external API dependencies** -- all correction happens locally using the wrapped entity's transcription output
+- **Extensible language framework** -- add support for new languages by implementing a language module
+- **Fully local** -- no external API calls; all correction runs on your HA instance
 
 ## Getting Started
 
@@ -61,20 +81,40 @@ Select the STT entity you want to wrap (e.g., "Azure Speech-to-Text" or "Whisper
 
 Select or create a voice pipeline, then set **Speech-to-text** to your new corrected STT entity.
 
-### 4. (Optional) Configure Correction
+### 4. Configure Correction (Optional)
 
 [![Open your Home Assistant instance and show this integration.](https://my.home-assistant.io/badges/integration.svg)](https://my.home-assistant.io/redirect/integration/?domain=stt_corrector)
 
-Configure via the integration page > **Configure**:
+Go to the integration page and click **Configure**. The options use a menu-based layout:
 
-| Section | Option | Default | Description |
-|---------|--------|---------|-------------|
-| **Correction Stages** | Stages | Both enabled | Which correction stages to run |
-| **Custom Replacements** | Replacements | Empty | `wrong=correct` substitution rules |
-| **Similarity Matching** | Fuzzy threshold | 0.80 | Minimum similarity score (0.5-1.0) to accept a match |
-| **Similarity Matching** | Exclusions | Empty | Text segments to never correct |
-| **Phrase Sources** | Auto-collect sources | All enabled | Which HA registries to collect phrases from (floors, areas, devices, exposed entities) |
-| **Phrase Sources** | Custom phrases | Empty | Additional phrases for similarity matching |
+```
+Main Menu
+  +-- Active Processors
+  +-- Language Settings
+  |     +-- Chinese (back to main menu)
+  +-- Phrase Collection
+  +-- Custom Replacements
+  +-- Similarity Matching
+```
+
+| Menu Item | What you configure |
+|-----------|-------------------|
+| **Active Processors** | Enable or disable each processor: Language Processing, Custom Replacements, Similarity Matching. All three are enabled by default. |
+| **Language Settings** | Per-locale settings for supported languages. Currently Chinese (zh-TW, zh-HK, zh-CN) with options for script conversion, punctuation stripping, and pinyin matching. |
+| **Phrase Collection** | Which HA sources to auto-collect phrases from (floors, areas, devices, exposed entities), plus any custom phrases you want to add. |
+| **Custom Replacements** | Exact text substitution rules in `wrong=correct` format. For consistently misrecognized words. |
+| **Similarity Matching** | Fuzzy matching threshold (0.5--1.0, default 0.8) and exclusion list for words that should never be corrected. |
+
+#### Chinese Locale Settings
+
+Under **Language Settings > Chinese**, each locale (zh-TW, zh-HK, zh-CN) has its own collapsible section with these options:
+
+| Setting | Description | zh-TW default | zh-HK default | zh-CN default |
+|---------|-------------|---------------|---------------|---------------|
+| **Strip Trailing Punctuation** | Remove sentence-ending punctuation from STT output | On | On | On |
+| **Punctuation Characters** | Which characters to strip (e.g., `。`) | `。` | `。` | `。` |
+| **Script Conversion** | Convert between simplified and traditional Chinese via OpenCC | On (simplified to traditional, Taiwan) | On (simplified to traditional, Hong Kong) | Off (traditional to simplified) |
+| **Pinyin Matching** | Use pinyin similarity for Similarity Matching | On | On | On |
 
 ### Uninstallation
 
@@ -112,13 +152,46 @@ No. The config flow filters out other `stt_corrector` entities to prevent nestin
 - Lower the similarity threshold if fuzzy matching is not catching errors
 - Use `test_correction` to diagnose which candidates are being considered
 
+**What does Language Processing do?**
+
+Language Processing applies locale-specific text normalization before the other processors run. For Chinese locales, this includes:
+- **Trailing punctuation stripping**: Removes sentence-ending punctuation (e.g., `打开灯。` becomes `打开灯`) that some STT engines append to voice commands
+- **Script conversion**: Converts between simplified and traditional Chinese using OpenCC (e.g., `打开灯` becomes `打開燈` for zh-TW)
+
+Each setting is independently configurable per locale via the Language Settings menu.
+
 **What is pinyin matching?**
 
-For Chinese (CJK) text, the integration converts characters to their romanized pronunciation (pinyin) and compares phonetic similarity at the syllable level. This handles cases where the STT engine recognizes a homophone instead of the intended word. Tone differences are tolerated with reduced confidence, and acoustically similar initials (e.g., l/r/n, zh/z, sh/s) receive partial credit.
+For Chinese text, the integration converts characters to their romanized pronunciation (pinyin) and compares phonetic similarity at the syllable level. This catches cases where the STT engine recognizes a homophone instead of the intended word. Tone differences are tolerated with reduced confidence, and acoustically similar initials (e.g., l/r/n, zh/z, sh/s) receive partial credit.
 
 **Can I use this without auto-collected phrases?**
 
-Yes. Disable all auto-collect sources in the configuration options and only use custom phrases. Or disable similarity matching entirely and rely solely on custom replacements.
+Yes. Disable all auto-collect sources in Phrase Collection and use only custom phrases. Or disable similarity matching entirely and rely solely on custom replacements.
+
+**What happens when I wrap an STT entity?**
+
+A new STT entity is created (e.g., `stt.azure_speech_corrected`). The original entity is untouched and continues to work independently. You should use the **corrected** entity in your voice pipeline and automations -- it proxies audio through the original and applies corrections to the transcribed text.
+
+**What do the similarity threshold numbers mean?**
+
+The threshold (0.5--1.0) controls how similar a transcribed segment must be to a known phrase before it gets corrected. Practical guidance:
+- **0.8 (default)** -- safe starting point. Catches clear misrecognitions without false corrections.
+- **0.7--0.8** -- catches more errors, but may occasionally "correct" words that were already right.
+- **Below 0.7** -- aggressive. Only use this if you have a small, distinct phrase vocabulary.
+
+When in doubt, use `test_correction` to see candidate scores and tune from there.
+
+**Do exclusions affect all processors?**
+
+No. Exclusions only prevent corrections from **Similarity Matching**. Language Processing and Custom Replacements always run regardless of the exclusion list. If you need to prevent a replacement rule from firing, remove the rule itself.
+
+**How do replacement rules handle overlapping keys?**
+
+Replacement rules are applied in longest-key-first order. If you have rules for both `living room` and `living room light`, the longer key `living room light` matches first. This prevents shorter rules from partially matching text that a longer rule should handle.
+
+**Do I need to configure Language Settings for non-Chinese languages?**
+
+No. Language Settings currently only has options for Chinese. For other languages, the integration uses standard fuzzy matching (SequenceMatcher) with no special processing. Additional language modules may be added in the future.
 
 **How do I install the latest development version?**
 
@@ -137,7 +210,7 @@ Development versions may contain breaking changes -- to revert, run the same act
 
 | Document | Description |
 |----------|-------------|
-| [How It Works](docs/how-it-works.md) | Correction pipeline architecture and matching strategies |
+| [Correction Pipeline](docs/correction-pipeline.md) | Three-processor correction pipeline with examples |
 | [Sensors](docs/sensors.md) | Sensor entities for correction tracking and monitoring |
 | [Services](docs/services.md) | Management services with parameters and examples |
 

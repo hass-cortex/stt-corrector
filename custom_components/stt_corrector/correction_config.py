@@ -7,16 +7,18 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .const import (
+    CONF_ACTIVE_PROCESSORS,
     CONF_AUTO_COLLECT_SOURCES,
     CONF_CUSTOM_EXCLUSIONS,
     CONF_CUSTOM_PHRASES,
     CONF_CUSTOM_REPLACEMENTS,
-    CONF_ENABLE_CUSTOM_REPLACEMENTS,
-    CONF_ENABLE_FUZZY_MATCHING,
     CONF_FUZZY_THRESHOLD,
+    CONF_LANGUAGE_CONFIG,
+    CORRECTION_PROCESSOR_LANGUAGE,
+    CORRECTION_PROCESSOR_REPLACEMENTS,
+    CORRECTION_PROCESSOR_SIMILARITY,
+    DEFAULT_ACTIVE_PROCESSORS,
     DEFAULT_AUTO_COLLECT_SOURCES,
-    DEFAULT_ENABLE_CUSTOM_REPLACEMENTS,
-    DEFAULT_ENABLE_FUZZY_MATCHING,
     DEFAULT_FUZZY_THRESHOLD,
 )
 
@@ -25,13 +27,13 @@ from .const import (
 class CorrectionConfig:
     """Typed configuration for the correction pipeline.
 
-    Centralizes all CONF_*/DEFAULT_* pairings so they are defined once.
-    Unlike the azure-speech-stt version, this does NOT include
-    enable_entity_hints (Azure pre-recognition hints are not relevant here).
+    Processor enable states are derived from the active_processors list.
+    No redundant boolean flags are stored.
     """
 
-    enable_custom_replacements: bool = DEFAULT_ENABLE_CUSTOM_REPLACEMENTS
-    enable_fuzzy_matching: bool = DEFAULT_ENABLE_FUZZY_MATCHING
+    active_processors: list[str] = field(
+        default_factory=lambda: list(DEFAULT_ACTIVE_PROCESSORS)
+    )
     fuzzy_threshold: float = DEFAULT_FUZZY_THRESHOLD
     custom_phrases: list[str] = field(default_factory=list)
     custom_replacements: dict[str, str] = field(default_factory=dict)
@@ -39,6 +41,22 @@ class CorrectionConfig:
     auto_collect_sources: list[str] = field(
         default_factory=lambda: list(DEFAULT_AUTO_COLLECT_SOURCES)
     )
+    language_config: dict[str, dict[str, Any]] = field(default_factory=dict)
+
+    @property
+    def enable_language_processing(self) -> bool:
+        """Whether language processing is enabled."""
+        return CORRECTION_PROCESSOR_LANGUAGE in self.active_processors
+
+    @property
+    def enable_custom_replacements(self) -> bool:
+        """Whether custom replacements are enabled."""
+        return CORRECTION_PROCESSOR_REPLACEMENTS in self.active_processors
+
+    @property
+    def enable_fuzzy_matching(self) -> bool:
+        """Whether similarity matching is enabled."""
+        return CORRECTION_PROCESSOR_SIMILARITY in self.active_processors
 
     @classmethod
     def from_options(cls, options: Mapping[str, Any]) -> CorrectionConfig:
@@ -51,11 +69,8 @@ class CorrectionConfig:
             CorrectionConfig populated from options with defaults.
         """
         return cls(
-            enable_custom_replacements=options.get(
-                CONF_ENABLE_CUSTOM_REPLACEMENTS, DEFAULT_ENABLE_CUSTOM_REPLACEMENTS
-            ),
-            enable_fuzzy_matching=options.get(
-                CONF_ENABLE_FUZZY_MATCHING, DEFAULT_ENABLE_FUZZY_MATCHING
+            active_processors=list(
+                options.get(CONF_ACTIVE_PROCESSORS, DEFAULT_ACTIVE_PROCESSORS)
             ),
             fuzzy_threshold=options.get(CONF_FUZZY_THRESHOLD, DEFAULT_FUZZY_THRESHOLD),
             custom_phrases=options.get(CONF_CUSTOM_PHRASES, []),
@@ -64,4 +79,5 @@ class CorrectionConfig:
             auto_collect_sources=list(
                 options.get(CONF_AUTO_COLLECT_SOURCES, DEFAULT_AUTO_COLLECT_SOURCES)
             ),
+            language_config=options.get(CONF_LANGUAGE_CONFIG, {}),
         )

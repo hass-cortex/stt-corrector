@@ -38,9 +38,9 @@ class FuzzyMatcher:
             exclusions: Segments to never correct (skip fuzzy matching).
         """
         if matchers is None:
-            from .registry import MatcherRegistry
+            from .languages.registry import LanguageModuleRegistry
 
-            matchers = MatcherRegistry.get_matchers(None)
+            matchers = LanguageModuleRegistry.get_matchers(None)
         self._threshold = threshold
         self._phrases: list[str] = []
         self._set_phrases(known_phrases)

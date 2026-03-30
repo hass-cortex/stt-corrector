@@ -91,13 +91,17 @@ class TestTestCorrection:
         from custom_components.stt_corrector.correction.corrector import (
             SpeechCorrector,
         )
+        from custom_components.stt_corrector.correction.processors.similarity import (
+            SimilarityProcessor,
+        )
         from custom_components.stt_corrector.services import (
             async_handle_test_correction,
         )
 
         corrector = SpeechCorrector(
-            known_phrases=["走廊燈"],
-            fuzzy_threshold=0.75,
+            [
+                SimilarityProcessor(known_phrases=["走廊燈"], threshold=0.75),
+            ]
         )
 
         async def _test_correction(text):
@@ -409,8 +413,10 @@ class TestGetCorrectionConfig:
             {
                 "custom_phrases": ["phrase1"],
                 "custom_replacements": {"a": "b"},
-                "enable_custom_replacements": True,
-                "enable_fuzzy_matching": False,
+                "active_processors": [
+                    "language_processing",
+                    "replacements",
+                ],
                 "fuzzy_threshold": 0.9,
                 "custom_exclusions": ["skip_this"],
             }
@@ -477,8 +483,8 @@ class TestSetCorrectionConfig:
         updated = mock_hass.config_entries.async_update_entry.call_args[1]["options"]
         assert updated["custom_phrases"] == ["a", "b"]
         assert updated["custom_replacements"] == {"x": "y"}
-        assert updated["enable_custom_replacements"] is False
-        assert updated["enable_fuzzy_matching"] is False
+        assert "replacements" not in updated["active_processors"]
+        assert "similarity" not in updated["active_processors"]
         assert updated["fuzzy_threshold"] == 0.6
         assert updated["custom_exclusions"] == ["skip"]
 

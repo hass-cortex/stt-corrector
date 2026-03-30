@@ -17,8 +17,16 @@ from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import CONF_WRAPPED_ENTITY_ID, DOMAIN
-from .correction import DiagnosticResult, SpeechCorrector
-from .correction.registry import MatcherRegistry
+from .correction import (
+    CorrectionMethod,
+    DiagnosticResult,
+    LanguageModuleRegistry,
+    ReplacementProcessor,
+    SimilarityProcessor,
+    SpeechCorrector,
+    TextProcessor,
+)
+from .correction.types import CorrectionChange
 from .correction_config import CorrectionConfig
 from .models import CorrectionStats, STTCorrectorRuntimeData
 from .phrase_builder import PhraseBuilder
@@ -154,12 +162,9 @@ class CorrectedSTTEntity(SpeechToTextEntity):
         result = await wrapped.async_process_audio_stream(metadata, replay())
 
         if result.result == SpeechResultState.SUCCESS and result.text:
-            if (
-                self._corrector_locale is not None
-                and metadata.language != self._corrector_locale
-            ):
+            if self._corrector_locale != metadata.language:
                 self._corrector = self._build_corrector(locale=metadata.language)
-            self._corrector_locale = metadata.language
+                self._corrector_locale = metadata.language
 
             phrases = await self._phrase_builder.build()
             self._corrector.update_phrases(phrases)
@@ -226,16 +231,36 @@ class CorrectedSTTEntity(SpeechToTextEntity):
             return
 
         # Partition changes by method
-        custom_changes: list[Any] = []
-        fuzzy_changes: list[Any] = []
+
+        lang_changes: list[CorrectionChange] = []
+        custom_changes: list[CorrectionChange] = []
+        fuzzy_changes: list[CorrectionChange] = []
         for change in correction.changes:
-            if change.method == "custom_rule":
+            if change.method in (
+                CorrectionMethod.SCRIPT_CONVERSION,
+                CorrectionMethod.PUNCTUATION_STRIP,
+            ):
+                lang_changes.append(change)
+            elif change.method == CorrectionMethod.CUSTOM_RULE:
                 custom_changes.append(change)
             else:
                 fuzzy_changes.append(change)
 
         _LOGGER.debug(
-            "Correction stage 1 (replacements): %s, %d rules, %d applied",
+            "Correction [language_processing]: %s, %d applied",
+            "ON" if cfg.enable_language_processing else "OFF",
+            len(lang_changes),
+        )
+        for change in lang_changes:
+            _LOGGER.debug(
+                "  [%s] '%s' → '%s'",
+                change.method,
+                change.original_segment,
+                change.corrected_segment,
+            )
+
+        _LOGGER.debug(
+            "Correction [replacements]: %s, %d rules, %d applied",
             "ON" if cfg.enable_custom_replacements else "OFF",
             len(cfg.custom_replacements),
             len(custom_changes),
@@ -249,7 +274,7 @@ class CorrectedSTTEntity(SpeechToTextEntity):
 
         excluded_count = sum(1 for c in correction.candidates if c.excluded)
         _LOGGER.debug(
-            "Correction stage 2 (similarity): %s, threshold=%.2f, %d applied, %d exclusions (%d hit)",
+            "Correction [similarity]: %s, threshold=%.2f, %d applied, %d exclusions (%d hit)",
             "ON" if cfg.enable_fuzzy_matching else "OFF",
             cfg.fuzzy_threshold,
             len(fuzzy_changes),
@@ -291,15 +316,37 @@ class CorrectedSTTEntity(SpeechToTextEntity):
     ) -> SpeechCorrector:
         if cfg is None:
             cfg = CorrectionConfig.from_options(self._options)
-        return SpeechCorrector(
-            known_phrases=[],
-            custom_replacements=cfg.custom_replacements or None,
-            fuzzy_threshold=cfg.fuzzy_threshold,
-            enable_custom_replacements=cfg.enable_custom_replacements,
-            enable_fuzzy_matching=cfg.enable_fuzzy_matching,
-            matchers=MatcherRegistry.get_matchers(locale),
-            exclusions=cfg.custom_exclusions or None,
-        )
+
+        processors: list[TextProcessor] = []
+
+        # Language Processing processors (only when locale is known)
+        if cfg.enable_language_processing and locale:
+            module = LanguageModuleRegistry.get_module_for_locale(locale)
+            if module is not None:
+                module_cfg = cfg.language_config.get(
+                    module.module_key(), module.default_config()
+                )
+                processors.extend(module.get_processors(locale, module_cfg))
+
+        # Custom Replacements processor
+        if cfg.enable_custom_replacements and cfg.custom_replacements:
+            processors.append(ReplacementProcessor(cfg.custom_replacements))
+
+        # Similarity Matching processor
+        if cfg.enable_fuzzy_matching:
+            matchers = LanguageModuleRegistry.get_matchers(
+                locale, language_config=cfg.language_config or None
+            )
+            processors.append(
+                SimilarityProcessor(
+                    known_phrases=[],
+                    threshold=cfg.fuzzy_threshold,
+                    matchers=matchers,
+                    exclusions=cfg.custom_exclusions or None,
+                )
+            )
+
+        return SpeechCorrector(processors)
 
     def _push_stats(self, stats: CorrectionStats) -> None:
         runtime_data: STTCorrectorRuntimeData = self._config_entry.runtime_data

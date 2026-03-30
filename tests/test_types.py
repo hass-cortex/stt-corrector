@@ -2,8 +2,25 @@
 
 from custom_components.stt_corrector.correction.types import (
     CorrectionChange,
+    CorrectionMethod,
     CorrectionResult,
 )
+
+
+class TestCorrectionMethod:
+    """Tests for CorrectionMethod enum."""
+
+    def test_script_conversion_value(self) -> None:
+        assert CorrectionMethod.SCRIPT_CONVERSION == "script_conversion"
+
+    def test_all_methods_present(self) -> None:
+        methods = {m.value for m in CorrectionMethod}
+        assert methods == {
+            "custom_rule",
+            "fuzzy_match",
+            "script_conversion",
+            "punctuation_strip",
+        }
 
 
 class TestCorrectionChange:
