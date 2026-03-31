@@ -31,3 +31,4 @@ class CorrectionStats:
     language: str = ""
     raw_text: str | None = None
     corrected_text: str | None = None
+    processing_time_ms: float | None = None

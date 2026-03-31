@@ -247,6 +247,7 @@ class STTCorrectorOptionsFlow(OptionsFlow):
 
         fields: dict[vol.Marker, Any] = {}
         suggested: dict[str, Any] = {}
+        select_opts = module.select_options()
 
         for locale_lower, settings in schema_def.items():
             section_key = locale_lower.replace("-", "_")
@@ -262,7 +263,19 @@ class STTCorrectorOptionsFlow(OptionsFlow):
                 current_val = locale_cfg.get(setting, default_val)
                 section_suggested[setting] = current_val
 
-                if isinstance(default_val, bool):
+                if setting in select_opts:
+                    section_fields[vol.Optional(setting, default=default_val)] = (
+                        SelectSelector(
+                            SelectSelectorConfig(
+                                options=[
+                                    SelectOptionDict(value=o["value"], label=o["label"])
+                                    for o in select_opts[setting]
+                                ],
+                                mode="dropdown",
+                            )
+                        )
+                    )
+                elif isinstance(default_val, bool):
                     section_fields[vol.Required(setting, default=default_val)] = bool
                 elif isinstance(default_val, str):
                     section_fields[vol.Optional(setting, default=default_val)] = (

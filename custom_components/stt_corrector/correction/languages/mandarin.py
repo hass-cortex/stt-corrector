@@ -191,10 +191,8 @@ class ChineseScriptConverter(TextProcessor):
     Converts text between simplified and traditional Chinese at the
     character level (e.g., "开灯" -> "開燈" for s2tw mode).
 
-    Supported modes:
-        s2tw  - Simplified -> Traditional (Taiwan, character-level)
-        s2hk  - Simplified -> Traditional (Hong Kong)
-        t2s   - Traditional -> Simplified
+    Accepts any OpenCC conversion mode (e.g., s2tw, s2hk, t2s, tw2s, hk2s).
+    See https://github.com/BYVoid/OpenCC for the full list.
     """
 
     def __init__(self, mode: str) -> None:
@@ -284,18 +282,18 @@ _SETTINGS: list[str] = [
     SETTING_PINYIN_MATCHING,
 ]
 
-# OpenCC mode mapping: normalized locale -> conversion mode
-_OPENCC_MODES: dict[str, str] = {
+# Default OpenCC mode per locale
+_DEFAULT_OPENCC_MODES: dict[str, str] = {
     "zh-tw": "s2tw",
     "zh-hk": "s2hk",
-    "zh-cn": "t2s",
+    "zh-cn": "",
 }
 
-# Shared base config (zh-cn overrides script_conversion to False)
+# Shared base config (locale-specific defaults override script_conversion)
 _BASE_LOCALE_CONFIG: dict[str, Any] = {
     SETTING_STRIP_TRAILING_PUNCTUATION: True,
     SETTING_TRAILING_PUNCTUATION: "。",
-    SETTING_SCRIPT_CONVERSION: True,
+    SETTING_SCRIPT_CONVERSION: "",
     SETTING_PINYIN_MATCHING: True,
 }
 
@@ -321,9 +319,11 @@ class MandarinModule(LanguageModule):
 
     def default_config(self) -> dict[str, dict[str, Any]]:
         return {
-            "zh-tw": dict(_BASE_LOCALE_CONFIG),
-            "zh-hk": dict(_BASE_LOCALE_CONFIG),
-            "zh-cn": {**_BASE_LOCALE_CONFIG, SETTING_SCRIPT_CONVERSION: False},
+            locale: {
+                **_BASE_LOCALE_CONFIG,
+                SETTING_SCRIPT_CONVERSION: _DEFAULT_OPENCC_MODES.get(locale, ""),
+            }
+            for locale in (normalize_locale(loc) for loc in _LOCALES)
         }
 
     def get_processors(
@@ -338,10 +338,11 @@ class MandarinModule(LanguageModule):
             if punctuation:
                 processors.append(TrailingPunctuationStripper(punctuation))
 
-        if locale_cfg.get(SETTING_SCRIPT_CONVERSION, False):
-            mode = _OPENCC_MODES.get(normalized)
-            if mode is not None:
-                processors.append(ChineseScriptConverter(mode))
+        mode = locale_cfg.get(SETTING_SCRIPT_CONVERSION, "")
+        if isinstance(mode, bool):
+            mode = _DEFAULT_OPENCC_MODES.get(normalized, "")
+        if mode:
+            processors.append(ChineseScriptConverter(mode))
 
         return processors
 
@@ -356,3 +357,13 @@ class MandarinModule(LanguageModule):
 
     def config_schema(self) -> dict[str, list[str]]:
         return {normalize_locale(loc): list(_SETTINGS) for loc in _LOCALES}
+
+    def select_options(self) -> dict[str, list[dict[str, str]]]:
+        return {
+            SETTING_SCRIPT_CONVERSION: [
+                {"value": "", "label": "Off"},
+                {"value": "s2tw", "label": "Simplified → Traditional (Taiwan)"},
+                {"value": "s2hk", "label": "Simplified → Traditional (Hong Kong)"},
+                {"value": "t2s", "label": "Traditional → Simplified"},
+            ],
+        }

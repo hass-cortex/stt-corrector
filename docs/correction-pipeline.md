@@ -25,15 +25,16 @@ For Chinese locales, two processors run in order:
 
 1. **Trailing punctuation stripping** -- Removes sentence-ending punctuation (like `。`) that STT engines sometimes append to voice commands. These characters are meaningless for home automation commands and can interfere with later matching.
 
-2. **Script conversion** -- Converts between simplified and traditional Chinese using [OpenCC](https://github.com/BYVoid/OpenCC). The conversion mode depends on the locale:
+2. **Script conversion** -- Converts between simplified and traditional Chinese using [OpenCC](https://github.com/BYVoid/OpenCC). Each locale can choose any conversion mode from the dropdown:
 
-   | Locale | Conversion | OpenCC mode | Example |
-   |--------|-----------|-------------|---------|
-   | zh-TW | Simplified to Traditional (Taiwan) | s2tw | `打开` to `打開` |
-   | zh-HK | Simplified to Traditional (Hong Kong) | s2hk | `开灯` to `開燈` |
-   | zh-CN | Traditional to Simplified | t2s | `開燈` to `开灯` |
+   | Mode | Direction | Description |
+   |------|-----------|-------------|
+   | s2tw | Simplified → Traditional | Taiwan standard |
+   | s2hk | Simplified → Traditional | Hong Kong variant |
+   | t2s | Traditional → Simplified | Generic conversion |
+   | Off | — | Disabled |
 
-   Script conversion for zh-CN is disabled by default because most Mainland STT engines already output simplified Chinese.
+   **Defaults:** zh-TW uses `s2tw`, zh-HK uses `s2hk`, zh-CN is off. These can be changed per locale in Language Settings.
 
 **Other languages**: No built-in language processing yet. The framework is extensible -- new languages can be added by implementing a `LanguageModule`.
 

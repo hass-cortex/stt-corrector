@@ -99,6 +99,17 @@ SENSOR_DESCRIPTIONS: tuple[STTCorrectorSensorDescription, ...] = (
         entity_registry_enabled_default=False,
         update_fn=lambda cur, s: s.language,
     ),
+    STTCorrectorSensorDescription(
+        key="last_processing_time",
+        translation_key="last_processing_time",
+        native_unit_of_measurement="ms",
+        suggested_display_precision=1,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        update_fn=lambda cur, s: (
+            s.processing_time_ms if s.processing_time_ms is not None else cur
+        ),
+    ),
 )
 
 

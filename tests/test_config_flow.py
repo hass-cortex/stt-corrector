@@ -245,19 +245,19 @@ class TestOptionsFlowMenu:
                 "zh_tw": {
                     "strip_trailing_punctuation": True,
                     "trailing_punctuation": "。",
-                    "script_conversion": True,
+                    "script_conversion": "s2tw",
                     "pinyin_matching": True,
                 },
                 "zh_hk": {
                     "strip_trailing_punctuation": True,
                     "trailing_punctuation": "。",
-                    "script_conversion": False,
+                    "script_conversion": "",
                     "pinyin_matching": True,
                 },
                 "zh_cn": {
                     "strip_trailing_punctuation": False,
                     "trailing_punctuation": "。",
-                    "script_conversion": False,
+                    "script_conversion": "t2s",
                     "pinyin_matching": False,
                 },
             }
@@ -265,9 +265,10 @@ class TestOptionsFlowMenu:
         assert result["type"] == "menu"
         saved = flow.hass.config_entries.async_update_entry.call_args[1]["options"]
         lang_cfg = saved["language_config"]["mandarin"]
-        assert lang_cfg["zh-tw"]["script_conversion"] is True
+        assert lang_cfg["zh-tw"]["script_conversion"] == "s2tw"
         assert lang_cfg["zh-tw"]["strip_trailing_punctuation"] is True
-        assert lang_cfg["zh-hk"]["script_conversion"] is False
+        assert lang_cfg["zh-hk"]["script_conversion"] == ""
+        assert lang_cfg["zh-cn"]["script_conversion"] == "t2s"
         assert lang_cfg["zh-cn"]["pinyin_matching"] is False
         assert lang_cfg["zh-cn"]["strip_trailing_punctuation"] is False
 

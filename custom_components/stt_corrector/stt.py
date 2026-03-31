@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import AsyncIterable
 from typing import TYPE_CHECKING, Any
 
@@ -155,6 +156,8 @@ class CorrectedSTTEntity(SpeechToTextEntity):
         async for chunk in stream:
             audio_chunks.append(chunk)
 
+        t0 = time.monotonic()
+
         async def replay() -> AsyncIterable[bytes]:
             for chunk in audio_chunks:
                 yield chunk
@@ -171,6 +174,7 @@ class CorrectedSTTEntity(SpeechToTextEntity):
 
             cfg = CorrectionConfig.from_options(self._options)
             correction = self._corrector.diagnose(result.text)
+            elapsed_ms = (time.monotonic() - t0) * 1000
             self._log_correction_result(correction, cfg)
 
             corrected_text = correction.corrected
@@ -183,6 +187,7 @@ class CorrectedSTTEntity(SpeechToTextEntity):
                     language=metadata.language,
                     raw_text=result.text,
                     corrected_text=corrected_text if correction_applied else None,
+                    processing_time_ms=elapsed_ms,
                 )
             )
 

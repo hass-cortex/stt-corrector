@@ -22,7 +22,7 @@ Home Assistant custom integration that wraps any STT entity with a three-process
 custom_components/stt_corrector/
 ├── __init__.py          # Entry point: async_setup_entry, async_unload_entry, pypinyin preload
 ├── stt.py               # CorrectedSTTEntity -- proxy STT entity wrapping any HA STT provider
-├── sensor.py            # 7 correction statistics sensors (RestoreSensor-based)
+├── sensor.py            # 9 correction statistics sensors (RestoreSensor-based)
 ├── config_flow.py       # Setup (select wrapped STT entity) + options (correction settings)
 ├── correction_config.py # CorrectionConfig dataclass (no Azure-specific fields)
 ├── phrase_builder.py    # Collects names from HA registries (floors, areas, devices, exposed entities)
@@ -42,7 +42,7 @@ custom_components/stt_corrector/
 │   └── languages/
 │       ├── __init__.py      # LanguageModule ABC + normalize_locale()
 │       ├── registry.py      # LanguageModuleRegistry
-│       └── mandarin.py      # MandarinModule + PinyinMatcher + ChineseScriptConverter
+│       └── mandarin.py      # MandarinModule + PinyinMatcher + ChineseScriptConverter (configurable OpenCC mode)
 ├── services.yaml        # Service UI definitions
 ├── strings.json         # UI strings (source of truth)
 └── translations/en.json # English translations (must match strings.json)
@@ -56,7 +56,7 @@ custom_components/stt_corrector/
 - **Sensor push updates**: STT entity calls `_notify_sensors()` after each proxy invocation. Sensors use `RestoreSensor` for state persistence across restarts.
 - **Wrapped entity resolution**: Tracked by entity registry ID (not entity_id string) to survive entity_id renames.
 - **Three-processor correction pipeline**: Language Processing (punctuation stripping, script conversion) → Custom Replacements → Similarity Matching. Processors are independently toggleable.
-- **LanguageModule framework**: Each language is a self-contained module (`correction/languages/`) providing processors (Language Processing), matchers (Similarity Matching), config schema, and per-locale defaults. Add new languages by subclassing `LanguageModule` and registering in `LanguageModuleRegistry`.
+- **LanguageModule framework**: Each language is a self-contained module (`correction/languages/`) providing processors (Language Processing), matchers (Similarity Matching), config schema, select options for dropdown settings, and per-locale defaults. Add new languages by subclassing `LanguageModule` and registering in `LanguageModuleRegistry`.
 - **Corrector lifecycle**: `SpeechCorrector` is rebuilt when the audio locale changes. Phrases are updated on the existing corrector before each correction.
 - **Locale normalization**: Always use `normalize_locale()` from `correction.languages` when comparing or looking up locale codes. HA Voice Pipeline and different STT engines send locales in inconsistent formats (`zh-TW`, `zh_tw`, `zh_TW`, `zh-tw`). The normalizer lowercases and converts underscores to hyphens (`zh-tw`). All config keys use this normalized format.
 - **PhoneticMatcher**: Abstract base with `supports()`, `similarity()`, `windows()`. Now provided by `LanguageModule.get_matcher()` rather than direct registry lookup.
@@ -180,6 +180,10 @@ class <Language>Module(LanguageModule):
 
     def config_schema(self) -> dict[str, list[str]]:
         return {"<locale-1>": ["<setting1>", "<setting2>"], ...}
+
+    def select_options(self) -> dict[str, list[dict[str, str]]]:
+        # Return dropdown options for settings, or empty dict
+        return {}
 ```
 
 ### Step 2: Register in `correction/languages/registry.py`

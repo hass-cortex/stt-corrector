@@ -56,7 +56,7 @@ class LanguageModule(ABC):
 
         Returns:
             Dict mapping lowercase locale to settings dict.
-            e.g. {"zh-tw": {"script_conversion": True, "pinyin_matching": True}}
+            e.g. {"zh-tw": {"script_conversion": "s2tw", "pinyin_matching": True}}
         """
 
     @abstractmethod
@@ -89,9 +89,21 @@ class LanguageModule(ABC):
         """Return per-locale setting names for config flow schema generation.
 
         Returns:
-            Dict mapping lowercase locale to list of boolean setting names.
+            Dict mapping lowercase locale to list of setting names.
             e.g. {"zh-tw": ["script_conversion", "pinyin_matching"]}
         """
+
+    def select_options(self) -> dict[str, list[dict[str, str]]]:
+        """Return select options for settings rendered as dropdowns.
+
+        Settings listed here are rendered as dropdown selectors in the
+        config flow instead of checkboxes or text fields.
+
+        Returns:
+            Dict mapping setting name to list of {value, label} dicts.
+            Settings not in this dict use default field types.
+        """
+        return {}
 
 
 __all__ = ["LanguageModule", "TextProcessor", "PhoneticMatcher", "normalize_locale"]

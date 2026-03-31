@@ -43,7 +43,7 @@ class TestMandarinModuleDefaultConfig:
         cfg = module.default_config()
         assert cfg["zh-tw"]["strip_trailing_punctuation"] is True
         assert cfg["zh-tw"]["trailing_punctuation"] == "。"
-        assert cfg["zh-tw"]["script_conversion"] is True
+        assert cfg["zh-tw"]["script_conversion"] == "s2tw"
         assert cfg["zh-tw"]["pinyin_matching"] is True
 
     def test_zh_hk_defaults(self) -> None:
@@ -51,7 +51,7 @@ class TestMandarinModuleDefaultConfig:
         cfg = module.default_config()
         assert cfg["zh-hk"]["strip_trailing_punctuation"] is True
         assert cfg["zh-hk"]["trailing_punctuation"] == "。"
-        assert cfg["zh-hk"]["script_conversion"] is True
+        assert cfg["zh-hk"]["script_conversion"] == "s2hk"
         assert cfg["zh-hk"]["pinyin_matching"] is True
 
     def test_zh_cn_defaults(self) -> None:
@@ -59,7 +59,7 @@ class TestMandarinModuleDefaultConfig:
         cfg = module.default_config()
         assert cfg["zh-cn"]["strip_trailing_punctuation"] is True
         assert cfg["zh-cn"]["trailing_punctuation"] == "。"
-        assert cfg["zh-cn"]["script_conversion"] is False
+        assert cfg["zh-cn"]["script_conversion"] == ""
         assert cfg["zh-cn"]["pinyin_matching"] is True
 
 
@@ -78,7 +78,7 @@ class TestMandarinModuleGetProcessors:
     def test_only_script_conversion(self) -> None:
         module = MandarinModule()
         config = {
-            "zh-tw": {"strip_trailing_punctuation": False, "script_conversion": True}
+            "zh-tw": {"strip_trailing_punctuation": False, "script_conversion": "s2tw"}
         }
         processors = module.get_processors("zh-TW", config)
         assert len(processors) == 1
@@ -90,7 +90,7 @@ class TestMandarinModuleGetProcessors:
             "zh-tw": {
                 "strip_trailing_punctuation": True,
                 "trailing_punctuation": "。",
-                "script_conversion": False,
+                "script_conversion": "",
             }
         }
         processors = module.get_processors("zh-TW", config)
@@ -100,7 +100,7 @@ class TestMandarinModuleGetProcessors:
     def test_both_disabled_returns_empty(self) -> None:
         module = MandarinModule()
         config = {
-            "zh-tw": {"strip_trailing_punctuation": False, "script_conversion": False}
+            "zh-tw": {"strip_trailing_punctuation": False, "script_conversion": ""}
         }
         processors = module.get_processors("zh-TW", config)
         assert processors == []
@@ -270,3 +270,62 @@ class TestLanguageModuleRegistryGetMatchers:
         matchers = LanguageModuleRegistry.get_matchers("zh-TW", language_config=config)
         assert len(matchers) == 1
         assert isinstance(matchers[0], DefaultMatcher)
+
+
+class TestMandarinModuleSelectOptions:
+    """Tests for MandarinModule.select_options."""
+
+    def test_returns_script_conversion_options(self) -> None:
+        module = MandarinModule()
+        opts = module.select_options()
+        assert "script_conversion" in opts
+        values = [o["value"] for o in opts["script_conversion"]]
+        assert "" in values  # off
+        assert "s2tw" in values
+        assert "s2hk" in values
+        assert "t2s" in values
+        assert len(values) == 4
+
+    def test_no_other_settings_have_options(self) -> None:
+        module = MandarinModule()
+        opts = module.select_options()
+        assert len(opts) == 1  # only script_conversion
+
+
+class TestMandarinModuleBoolFallback:
+    """Tests for bool script_conversion values falling back to locale defaults."""
+
+    def test_bool_true_uses_locale_default(self) -> None:
+        """Bool True falls back to locale default mode."""
+        module = MandarinModule()
+        config = {"zh-tw": {"script_conversion": True}}
+        processors = module.get_processors("zh-TW", config)
+        assert any(isinstance(p, ChineseScriptConverter) for p in processors)
+
+    def test_bool_false_uses_locale_default(self) -> None:
+        """Bool False falls back to locale default mode."""
+        module = MandarinModule()
+        config = {
+            "zh-tw": {"strip_trailing_punctuation": False, "script_conversion": False}
+        }
+        processors = module.get_processors("zh-TW", config)
+        assert any(isinstance(p, ChineseScriptConverter) for p in processors)
+
+    def test_bool_zh_cn_uses_empty_default(self) -> None:
+        """zh-CN bool falls back to empty default (off)."""
+        module = MandarinModule()
+        config = {
+            "zh-cn": {"strip_trailing_punctuation": False, "script_conversion": True}
+        }
+        processors = module.get_processors("zh-CN", config)
+        assert not any(isinstance(p, ChineseScriptConverter) for p in processors)
+
+    def test_custom_mode_regardless_of_locale(self) -> None:
+        """Any locale can use any OpenCC mode."""
+        module = MandarinModule()
+        config = {
+            "zh-cn": {"strip_trailing_punctuation": False, "script_conversion": "s2tw"}
+        }
+        processors = module.get_processors("zh-CN", config)
+        assert len(processors) == 1
+        assert isinstance(processors[0], ChineseScriptConverter)

@@ -9,13 +9,12 @@
 A Home Assistant custom integration that wraps any STT (speech-to-text) entity with a three-processor correction pipeline for improved voice command accuracy.
 
 ```
-                        +------------------+
 Audio -----> Wrapped STT -----> Raw Text -----> Correction Pipeline -----> Final Text
-             (Azure, Whisper,                   |                          |
-              Google, etc.)                     |  1. Language Processing   |
-                                                |  2. Custom Replacements  |
-                                                |  3. Similarity Matching  |
-                                                +--------------------------+
+             (Azure, Whisper,               |                          |
+              Google, etc.)                 |  1. Language Processing  |
+                                            |  2. Custom Replacements  |
+                                            |  3. Similarity Matching  |
+                                            +--------------------------+
 ```
 
 **Example (Chinese zh-TW pipeline):** Area `客廳`, device `循環扇`, custom rule `循環3=循環扇`
@@ -27,17 +26,6 @@ Audio -----> Wrapped STT -----> Raw Text -----> Correction Pipeline -----> Final
 | Custom Replacements | `打開客聽循環3` | `打開客聽循環扇` | Rule `循環3=循環扇` matched |
 | Similarity Matching | `打開客聽循環扇` | `打開客廳循環扇` | Pinyin matched `客聽` to area name `客廳` (score 0.85) |
 
-**Example (English pipeline):**
-
-| Processor | Input | Output | What happened |
-|-----------|-------|--------|---------------|
-| Raw STT output | | `turn on the livin room lite` | |
-| Language Processing | `turn on the livin room lite` | `turn on the livin room lite` | No English processing configured |
-| Custom Replacements | `turn on the livin room lite` | `turn on the livin room lite` | No replacement rules matched |
-| Similarity Matching | `turn on the livin room lite` | `turn on the living room light` | Fuzzy matched "livin room lite" to known phrase "living room light" |
-
-Each processor can be enabled or disabled independently. See [Correction Pipeline](docs/correction-pipeline.md) for details.
-
 ## Features
 
 - **Wraps any STT entity** -- works with Azure, Whisper, Google Cloud, or any other HA STT provider without modifying it
@@ -46,7 +34,7 @@ Each processor can be enabled or disabled independently. See [Correction Pipelin
 - **Configurable per locale** -- each Chinese locale (zh-TW, zh-HK, zh-CN) has its own settings for script conversion, punctuation, and pinyin matching
 - **Auto-collected phrase vocabulary** -- independently toggle collection from exposed entities, devices, areas, and floors
 - **Language-aware matching** -- pinyin syllable comparison for Chinese, SequenceMatcher for other languages
-- **Runtime statistics** -- 7 sensor entities tracking usage and correction performance ([details](docs/sensors.md))
+- **Runtime statistics** -- 9 sensor entities tracking usage and correction performance ([details](docs/sensors.md))
 - **Management services** -- 9 services for runtime configuration with entity targeting ([details](docs/services.md))
 - **Extensible language framework** -- add support for new languages by implementing a language module
 - **Fully local** -- no external API calls; all correction runs on your HA instance
@@ -100,21 +88,10 @@ Main Menu
 | Menu Item | What you configure |
 |-----------|-------------------|
 | **Active Processors** | Enable or disable each processor: Language Processing, Custom Replacements, Similarity Matching. All three are enabled by default. |
-| **Language Settings** | Per-locale settings for supported languages. Currently Chinese (zh-TW, zh-HK, zh-CN) with options for script conversion, punctuation stripping, and pinyin matching. |
+| **Language Settings** | Per-locale settings for supported languages. Currently Chinese (zh-TW, zh-HK, zh-CN) with options for script conversion mode (any OpenCC direction), punctuation stripping, and pinyin matching. |
 | **Phrase Collection** | Which HA sources to auto-collect phrases from (floors, areas, devices, exposed entities), plus any custom phrases you want to add. |
 | **Custom Replacements** | Exact text substitution rules in `wrong=correct` format. For consistently misrecognized words. |
 | **Similarity Matching** | Fuzzy matching threshold (0.5--1.0, default 0.8) and exclusion list for words that should never be corrected. |
-
-#### Chinese Locale Settings
-
-Under **Language Settings > Chinese**, each locale (zh-TW, zh-HK, zh-CN) has its own collapsible section with these options:
-
-| Setting | Description | zh-TW default | zh-HK default | zh-CN default |
-|---------|-------------|---------------|---------------|---------------|
-| **Strip Trailing Punctuation** | Remove sentence-ending punctuation from STT output | On | On | On |
-| **Punctuation Characters** | Which characters to strip (e.g., `。`) | `。` | `。` | `。` |
-| **Script Conversion** | Convert between simplified and traditional Chinese via OpenCC | On (simplified to traditional, Taiwan) | On (simplified to traditional, Hong Kong) | Off (traditional to simplified) |
-| **Pinyin Matching** | Use pinyin similarity for Similarity Matching | On | On | On |
 
 ### Uninstallation
 
@@ -156,7 +133,7 @@ No. The config flow filters out other `stt_corrector` entities to prevent nestin
 
 Language Processing applies locale-specific text normalization before the other processors run. For Chinese locales, this includes:
 - **Trailing punctuation stripping**: Removes sentence-ending punctuation (e.g., `打开灯。` becomes `打开灯`) that some STT engines append to voice commands
-- **Script conversion**: Converts between simplified and traditional Chinese using OpenCC (e.g., `打开灯` becomes `打開燈` for zh-TW)
+- **Script conversion**: Converts between simplified and traditional Chinese using any [OpenCC](https://github.com/BYVoid/OpenCC) conversion mode (e.g., `s2tw` for simplified to traditional Taiwan). Each locale can independently choose its conversion direction or disable conversion entirely.
 
 Each setting is independently configurable per locale via the Language Settings menu.
 

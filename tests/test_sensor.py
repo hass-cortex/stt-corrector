@@ -80,6 +80,7 @@ class TestSensorDescriptions:
             "last_corrected_text",
             "last_result",
             "last_language",
+            "last_processing_time",
         }
 
     def test_no_azure_specific_sensors(self):
@@ -405,4 +406,5 @@ class TestAsyncSetupEntry:
             "last_corrected_text",
             "last_result",
             "last_language",
+            "last_processing_time",
         }
