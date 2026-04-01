@@ -177,7 +177,12 @@ _opencc_cache: dict[str, Any] = {}
 
 
 def _get_opencc(mode: str) -> Any:
-    """Get or create a cached OpenCC converter instance."""
+    """Get or create a cached OpenCC converter instance.
+
+    Must be called from an executor thread on first use, since OpenCC()
+    performs blocking file I/O to load its config JSON.
+    Subsequent calls return the cached instance and are safe from any thread.
+    """
     if mode not in _opencc_cache:
         from opencc import OpenCC
 
@@ -288,6 +293,9 @@ _DEFAULT_OPENCC_MODES: dict[str, str] = {
     "zh-hk": "s2hk",
     "zh-cn": "",
 }
+
+# All OpenCC modes that may be selected by users (used for preloading)
+OPENCC_MODES: frozenset[str] = frozenset({"s2tw", "s2hk", "t2s"})
 
 # Shared base config (locale-specific defaults override script_conversion)
 _BASE_LOCALE_CONFIG: dict[str, Any] = {

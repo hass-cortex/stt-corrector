@@ -170,6 +170,11 @@ class CorrectedSTTEntity(SpeechToTextEntity):
                 self._corrector_locale = metadata.language
 
             phrases = await self._phrase_builder.build()
+            _LOGGER.debug("Phrase list: %d phrases", len(phrases))
+            if _LOGGER.isEnabledFor(logging.DEBUG):
+                for category, items in self._phrase_builder.categories.items():
+                    if items:
+                        _LOGGER.debug("  %s (%d): %s", category, len(items), items)
             self._corrector.update_phrases(phrases)
 
             cfg = CorrectionConfig.from_options(self._options)

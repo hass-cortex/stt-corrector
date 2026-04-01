@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from types import ModuleType
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 # ── Mock homeassistant module hierarchy ──
 _ha = ModuleType("homeassistant")
@@ -301,5 +301,6 @@ def mock_hass():
     hass.services = MagicMock()
     hass.services.has_service = MagicMock(return_value=False)
     hass.services.async_register = MagicMock()
+    hass.async_add_executor_job = AsyncMock(return_value=None)
     hass.data = {}
     return hass

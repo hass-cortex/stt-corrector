@@ -38,11 +38,13 @@ def _preload_opencc() -> None:
     """Pre-load OpenCC in executor to avoid blocking I/O in event loop.
 
     OpenCC reads conversion tables on first use, which triggers blocking I/O.
-    Loading here (in a thread) ensures subsequent calls are instant.
+    Loading here (in a thread) populates the mandarin module's cache so
+    subsequent calls from the event loop are instant.
     """
-    from opencc import OpenCC
+    from .correction.languages.mandarin import OPENCC_MODES, _get_opencc
 
-    OpenCC("s2tw")  # force-load conversion tables
+    for mode in OPENCC_MODES:
+        _get_opencc(mode)
 
 
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
@@ -50,6 +52,12 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     from .services import async_register_services
 
     async_register_services(hass)
+
+    # Global preloads — shared across all entries, only once
+    await asyncio.gather(
+        hass.async_add_executor_job(_preload_pypinyin),
+        hass.async_add_executor_job(_preload_opencc),
+    )
     return True
 
 
@@ -57,11 +65,6 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: STTCorrectorConfigEntry
 ) -> bool:
     """Set up STT Corrector from a config entry."""
-    await asyncio.gather(
-        hass.async_add_executor_job(_preload_pypinyin),
-        hass.async_add_executor_job(_preload_opencc),
-    )
-
     entry.runtime_data = STTCorrectorRuntimeData()
 
     # Forward to STT and sensor platforms
