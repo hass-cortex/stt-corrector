@@ -329,3 +329,47 @@ class TestMandarinModuleBoolFallback:
         processors = module.get_processors("zh-CN", config)
         assert len(processors) == 1
         assert isinstance(processors[0], ChineseScriptConverter)
+
+
+class TestDefaultSttLanguage:
+    """Test LanguageModule.default_stt_language() base implementation."""
+
+    def test_exact_match_returns_original_casing(self):
+        module = MandarinModule()
+        result = module.default_stt_language("zh-TW", ["en-US", "zh-TW", "ja-JP"])
+        assert result == "zh-TW"
+
+    def test_exact_match_case_insensitive(self):
+        module = MandarinModule()
+        result = module.default_stt_language("zh-tw", ["en-US", "zh-TW"])
+        assert result == "zh-TW"
+
+    def test_prefix_match_returns_prefix(self):
+        module = MandarinModule()
+        result = module.default_stt_language("zh-TW", ["en-US", "zh", "ja-JP"])
+        assert result == "zh"
+
+    def test_prefix_match_case_insensitive(self):
+        module = MandarinModule()
+        result = module.default_stt_language("zh-HK", ["ZH", "en"])
+        assert result == "ZH"
+
+    def test_no_match_returns_empty(self):
+        module = MandarinModule()
+        result = module.default_stt_language("zh-TW", ["en-US", "ja-JP"])
+        assert result == ""
+
+    def test_empty_available_returns_empty(self):
+        module = MandarinModule()
+        result = module.default_stt_language("zh-TW", [])
+        assert result == ""
+
+    def test_underscore_locale_normalized(self):
+        module = MandarinModule()
+        result = module.default_stt_language("zh_TW", ["zh-TW"])
+        assert result == "zh-TW"
+
+    def test_exact_match_preferred_over_prefix(self):
+        module = MandarinModule()
+        result = module.default_stt_language("zh-TW", ["zh", "zh-TW"])
+        assert result == "zh-TW"

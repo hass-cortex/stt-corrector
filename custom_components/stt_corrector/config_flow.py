@@ -35,6 +35,7 @@ from .const import (
     CONF_CUSTOM_REPLACEMENTS,
     CONF_FUZZY_THRESHOLD,
     CONF_LANGUAGE_CONFIG,
+    CONF_STT_LANGUAGE,
     CONF_WRAPPED_ENTITY_ID,
     CORRECTION_PROCESSOR_LANGUAGE,
     CORRECTION_PROCESSOR_REPLACEMENTS,
@@ -69,6 +70,38 @@ def _get_stt_entities(hass: HomeAssistant) -> list[dict[str, str]]:
         )
         options.append(SelectOptionDict(value=entry.entity_id, label=label))
     return options
+
+
+def _resolve_wrapped_stt_languages(
+    hass: HomeAssistant, config_entry: ConfigEntry
+) -> list[str]:
+    """Get supported languages from the wrapped STT entity.
+
+    Args:
+        hass: Home Assistant instance.
+        config_entry: Config entry with wrapped_entity_id in data.
+
+    Returns:
+        List of supported language codes, or empty list if unavailable.
+    """
+    wrapped_id = config_entry.data.get(CONF_WRAPPED_ENTITY_ID)
+    if not wrapped_id:
+        return []
+
+    ent_reg = er.async_get(hass)
+    entry = ent_reg.async_get(wrapped_id)
+    if entry is None:
+        return []
+
+    entity_comp = hass.data.get("stt")
+    if entity_comp is None:
+        return []
+
+    for platform_entity in getattr(entity_comp, "entities", []):
+        if platform_entity.entity_id == entry.entity_id:
+            return platform_entity.supported_languages
+
+    return []
 
 
 class STTCorrectorConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
@@ -249,6 +282,14 @@ class STTCorrectorOptionsFlow(OptionsFlow):
         suggested: dict[str, Any] = {}
         select_opts = module.select_options()
 
+        # Get wrapped STT entity's supported languages for stt_language dropdown
+        available_languages = _resolve_wrapped_stt_languages(
+            self.hass, self._config_entry
+        )
+        stt_lang_options = [SelectOptionDict(value="", label="\u2014 (Disabled)")] + [
+            SelectOptionDict(value=lang, label=lang) for lang in available_languages
+        ]
+
         for locale_lower, settings in schema_def.items():
             section_key = locale_lower.replace("-", "_")
             locale_cfg = module_config.get(locale_lower, {})
@@ -257,6 +298,21 @@ class STTCorrectorOptionsFlow(OptionsFlow):
             # Build inner section fields
             section_fields: dict[vol.Marker, Any] = {}
             section_suggested: dict[str, Any] = {}
+
+            # stt_language dropdown (generic, first field in every locale)
+            stt_lang_default = module.default_stt_language(
+                locale_lower, available_languages
+            )
+            current_stt_lang = locale_cfg.get(CONF_STT_LANGUAGE, stt_lang_default)
+            section_fields[vol.Optional(CONF_STT_LANGUAGE, default="")] = (
+                SelectSelector(
+                    SelectSelectorConfig(
+                        options=stt_lang_options,
+                        mode="dropdown",
+                    )
+                )
+            )
+            section_suggested[CONF_STT_LANGUAGE] = current_stt_lang
 
             for setting in settings:
                 default_val = locale_defaults.get(setting, False)
@@ -290,6 +346,9 @@ class STTCorrectorOptionsFlow(OptionsFlow):
                 for s in settings
                 if s in locale_cfg
             )
+            # Also check stt_language for collapse decision
+            if locale_cfg.get(CONF_STT_LANGUAGE, stt_lang_default) != stt_lang_default:
+                has_changes = True
             fields[vol.Optional(section_key)] = section(
                 vol.Schema(section_fields),
                 {"collapsed": not has_changes},

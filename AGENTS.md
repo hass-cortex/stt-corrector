@@ -222,6 +222,19 @@ HA Voice Pipeline and STT engines send locales in inconsistent formats:
 
 **DO NOT** use `.lower()` alone -- it doesn't handle underscore separators.
 
+### STT Language Mapping (`stt_language`)
+
+Each locale in a language module can map to an underlying STT engine language via the `stt_language` config key. This is a **generic infrastructure feature** handled by `_handle_language_step()` in `config_flow.py` and `supported_languages` / `_get_mapped_stt_language()` in `stt.py` -- individual language modules do not need to implement anything.
+
+**Three-state config logic** (in `stt.py:supported_languages` and `_get_mapped_stt_language`):
+- **Key absent** (never configured): auto-compute default via `LanguageModule.default_stt_language()` (exact match → prefix match → empty)
+- **Key = `""`** (explicitly disabled): locale is not advertised in `supported_languages`
+- **Key = `"zh"`** (explicitly mapped): locale is advertised, audio forwarded with mapped language
+
+**`default_stt_language()`** is a non-abstract method on `LanguageModule` with sensible defaults (exact match → prefix match → empty). Subclasses can override for language-specific heuristics.
+
+**Config storage:** `stt_language` is stored alongside module-specific settings in `CONF_LANGUAGE_CONFIG[module_key][locale]` but is NOT part of the module's `config_schema()` or `_SETTINGS` -- it's injected generically by the config flow infrastructure.
+
 ## Documentation Updates
 
 When adding features or changing behavior, update these files:

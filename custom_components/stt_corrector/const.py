@@ -15,6 +15,7 @@ CONF_CUSTOM_EXCLUSIONS = "custom_exclusions"
 CONF_AUTO_COLLECT_SOURCES = "auto_collect_sources"
 CONF_ACTIVE_PROCESSORS = "active_processors"
 CONF_LANGUAGE_CONFIG = "language_config"
+CONF_STT_LANGUAGE = "stt_language"
 
 # Correction processors
 CORRECTION_PROCESSOR_LANGUAGE = "language_processing"

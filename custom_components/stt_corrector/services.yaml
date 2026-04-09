@@ -119,6 +119,10 @@ set_correction_config:
       description: 'Dictionary of wrong to correct replacement pairs'
       selector:
         object:
+    enable_language_processing:
+      description: 'Enable language processing (punctuation stripping, script conversion)'
+      selector:
+        boolean:
     enable_custom_replacements:
       description: 'Enable custom replacement rules'
       selector:
@@ -136,6 +140,16 @@ set_correction_config:
           step: 0.05
     custom_exclusions:
       description: 'List of segments to never correct'
+      selector:
+        object:
+    auto_collect_sources:
+      description: 'Auto-collect phrase sources (floors, areas, devices, entities)'
+      example: '["floors", "areas", "devices", "entities"]'
+      selector:
+        object:
+    language_config:
+      description: 'Per-language module config with locale-specific settings (stt_language, etc.)'
+      example: '{"mandarin": {"zh-tw": {"stt_language": "zh"}}}'
       selector:
         object:
 

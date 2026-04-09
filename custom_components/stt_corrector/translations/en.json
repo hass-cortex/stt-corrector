@@ -58,12 +58,14 @@
           "zh_tw": {
             "name": "zh-TW (\u7e41\u9ad4\u53f0\u7063)",
             "data": {
+              "stt_language": "STT Language",
               "strip_trailing_punctuation": "Strip Trailing Punctuation",
               "trailing_punctuation": "Punctuation Characters",
               "script_conversion": "Script Conversion",
               "pinyin_matching": "Pinyin Matching"
             },
             "data_description": {
+              "stt_language": "Language to send to the underlying STT engine. Select a language to enable this locale in Voice Assistant.",
               "strip_trailing_punctuation": "Remove sentence-ending punctuation from STT output.",
               "trailing_punctuation": "Characters to strip from end of text.",
               "script_conversion": "Select the OpenCC conversion mode. Default: s2tw (Simplified \u2192 Traditional, Taiwan).",
@@ -73,12 +75,14 @@
           "zh_hk": {
             "name": "zh-HK (\u7e41\u9ad4\u9999\u6e2f)",
             "data": {
+              "stt_language": "STT Language",
               "strip_trailing_punctuation": "Strip Trailing Punctuation",
               "trailing_punctuation": "Punctuation Characters",
               "script_conversion": "Script Conversion",
               "pinyin_matching": "Pinyin Matching"
             },
             "data_description": {
+              "stt_language": "Language to send to the underlying STT engine. Select a language to enable this locale in Voice Assistant.",
               "strip_trailing_punctuation": "Remove sentence-ending punctuation from STT output.",
               "trailing_punctuation": "Characters to strip from end of text.",
               "script_conversion": "Select the OpenCC conversion mode. Default: s2hk (Simplified \u2192 Traditional, Hong Kong).",
@@ -88,12 +92,14 @@
           "zh_cn": {
             "name": "zh-CN (\u7b80\u4f53\u4e2d\u56fd)",
             "data": {
+              "stt_language": "STT Language",
               "strip_trailing_punctuation": "Strip Trailing Punctuation",
               "trailing_punctuation": "Punctuation Characters",
               "script_conversion": "Script Conversion",
               "pinyin_matching": "Pinyin Matching"
             },
             "data_description": {
+              "stt_language": "Language to send to the underlying STT engine. Select a language to enable this locale in Voice Assistant.",
               "strip_trailing_punctuation": "Remove sentence-ending punctuation from STT output.",
               "trailing_punctuation": "Characters to strip from end of text.",
               "script_conversion": "Select the OpenCC conversion mode. Default: Off.",
@@ -288,10 +294,13 @@
         },
         "custom_phrases": { "name": "Custom phrases", "description": "List of phrases." },
         "custom_replacements": { "name": "Custom replacements", "description": "Dictionary of replacement pairs." },
+        "enable_language_processing": { "name": "Enable language processing", "description": "Enable language processing (punctuation stripping, script conversion)." },
         "enable_custom_replacements": { "name": "Enable replacements", "description": "Enable custom replacement rules." },
         "enable_fuzzy_matching": { "name": "Enable fuzzy matching", "description": "Enable similarity matching." },
         "fuzzy_threshold": { "name": "Fuzzy threshold", "description": "Matching sensitivity (0.5-1.0)." },
-        "custom_exclusions": { "name": "Custom exclusions", "description": "List of segments to never correct." }
+        "custom_exclusions": { "name": "Custom exclusions", "description": "List of segments to never correct." },
+        "auto_collect_sources": { "name": "Auto-collect sources", "description": "Which registries to auto-collect phrases from (floors, areas, devices, entities)." },
+        "language_config": { "name": "Language config", "description": "Per-language module config with locale-specific settings." }
       }
     },
     "add_exclusions": {

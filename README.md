@@ -32,6 +32,7 @@ Audio -----> Wrapped STT -----> Raw Text -----> Correction Pipeline -----> Final
 - **Three-processor correction pipeline** -- Language Processing, Custom Replacements, and Similarity Matching, each independently toggleable
 - **Chinese language support** -- script conversion (simplified/traditional via OpenCC), trailing punctuation stripping, and pinyin-based phonetic matching
 - **Configurable per locale** -- each Chinese locale (zh-TW, zh-HK, zh-CN) has its own settings for script conversion, punctuation, and pinyin matching
+- **Locale-to-STT language mapping** -- advertise locale variants (e.g., zh-TW) in your voice pipeline even when the underlying STT only supports generic language codes (e.g., zh), with automatic prefix-based defaults
 - **Auto-collected phrase vocabulary** -- independently toggle collection from exposed entities, devices, areas, and floors
 - **Language-aware matching** -- pinyin syllable comparison for Chinese, SequenceMatcher for other languages
 - **Runtime statistics** -- 9 sensor entities tracking usage and correction performance ([details](docs/sensors.md))
@@ -88,7 +89,7 @@ Main Menu
 | Menu Item | What you configure |
 |-----------|-------------------|
 | **Active Processors** | Enable or disable each processor: Language Processing, Custom Replacements, Similarity Matching. All three are enabled by default. |
-| **Language Settings** | Per-locale settings for supported languages. Currently Chinese (zh-TW, zh-HK, zh-CN) with options for script conversion mode (any OpenCC direction), punctuation stripping, and pinyin matching. |
+| **Language Settings** | Per-locale settings for supported languages. Currently Chinese (zh-TW, zh-HK, zh-CN) with options for STT language mapping, script conversion mode (any OpenCC direction), punctuation stripping, and pinyin matching. Each locale has an **STT Language** dropdown that maps it to a language the underlying STT engine supports -- this enables the locale in your voice pipeline even if the STT engine doesn't natively support it. |
 | **Phrase Collection** | Which HA sources to auto-collect phrases from (floors, areas, devices, exposed entities), plus any custom phrases you want to add. |
 | **Custom Replacements** | Exact text substitution rules in `wrong=correct` format. For consistently misrecognized words. |
 | **Similarity Matching** | Fuzzy matching threshold (0.5--1.0, default 0.8) and exclusion list for words that should never be corrected. |
@@ -165,6 +166,10 @@ No. Exclusions only prevent corrections from **Similarity Matching**. Language P
 **How do replacement rules handle overlapping keys?**
 
 Replacement rules are applied in longest-key-first order. If you have rules for both `living room` and `living room light`, the longer key `living room light` matches first. This prevents shorter rules from partially matching text that a longer rule should handle.
+
+**My STT engine only supports "zh" but I need zh-TW for traditional Chinese -- what do I do?**
+
+Nothing special. The STT Corrector automatically detects that your STT engine supports `zh` and makes `zh-TW`, `zh-HK`, and `zh-CN` available in your voice pipeline via prefix matching. When you select `zh-TW`, the corrector sends `zh` to the underlying STT engine, then runs the zh-TW correction pipeline (e.g., simplified-to-traditional conversion). You can customize the mapping in **Language Settings > Chinese > zh-TW > STT Language**, or set it to "Disabled" to hide a locale.
 
 **Do I need to configure Language Settings for non-Chinese languages?**
 

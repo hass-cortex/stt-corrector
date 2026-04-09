@@ -226,10 +226,11 @@ class TestOptionsFlowMenu:
         assert "init" in result["menu_options"]
 
     @pytest.mark.asyncio
-    async def test_lang_mandarin_shows_form(self):
+    async def test_lang_mandarin_shows_form(self, mock_hass):
         entry = MagicMock()
         entry.options = {}
         flow = STTCorrectorOptionsFlow(entry)
+        flow.hass = mock_hass
         result = await flow.async_step_lang_mandarin()
         assert result["type"] == "form"
         assert result["step_id"] == "lang_mandarin"
@@ -347,3 +348,64 @@ class TestOptionsFlowMenu:
     async def test_config_flow_version_is_1(self):
         """Config flow version should be 1."""
         assert STTCorrectorConfigFlow.VERSION == 1
+
+
+class TestOptionsFlowSttLanguageDropdown:
+    """Test stt_language dropdown in language settings."""
+
+    @pytest.mark.asyncio
+    async def test_lang_mandarin_saves_stt_language(self, mock_hass):
+        """stt_language field is saved in per-locale config."""
+        from unittest.mock import patch
+
+        entry = MagicMock()
+        entry.options = {}
+        entry.data = {"wrapped_entity_id": "stt.fun_asr"}
+        flow = STTCorrectorOptionsFlow(entry)
+        flow.hass = mock_hass
+
+        with patch(
+            "custom_components.stt_corrector.config_flow._resolve_wrapped_stt_languages",
+            return_value=["zh", "en-US"],
+        ):
+            result = await flow.async_step_lang_mandarin(
+                {
+                    "zh_tw": {
+                        "stt_language": "zh",
+                        "strip_trailing_punctuation": True,
+                        "trailing_punctuation": "。",
+                        "script_conversion": "s2tw",
+                        "pinyin_matching": True,
+                    },
+                    "zh_hk": {
+                        "stt_language": "zh",
+                        "strip_trailing_punctuation": True,
+                        "trailing_punctuation": "。",
+                        "script_conversion": "s2hk",
+                        "pinyin_matching": True,
+                    },
+                    "zh_cn": {
+                        "stt_language": "",
+                        "strip_trailing_punctuation": True,
+                        "trailing_punctuation": "。",
+                        "script_conversion": "",
+                        "pinyin_matching": True,
+                    },
+                }
+            )
+
+        # Verify it saved and returned to menu
+        assert result["type"] == "menu"
+        saved = mock_hass.config_entries.async_update_entry.call_args
+        saved_options = saved[1]["options"]
+        assert (
+            saved_options["language_config"]["mandarin"]["zh-tw"]["stt_language"]
+            == "zh"
+        )
+        assert (
+            saved_options["language_config"]["mandarin"]["zh-hk"]["stt_language"]
+            == "zh"
+        )
+        assert (
+            saved_options["language_config"]["mandarin"]["zh-cn"]["stt_language"] == ""
+        )

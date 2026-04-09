@@ -23,6 +23,8 @@ from .models import CorrectionStats, STTCorrectorRuntimeData
 if TYPE_CHECKING:
     from . import STTCorrectorConfigEntry
 
+PARALLEL_UPDATES = 0
+
 
 @dataclass(frozen=True, kw_only=True)
 class STTCorrectorSensorDescription(SensorEntityDescription):

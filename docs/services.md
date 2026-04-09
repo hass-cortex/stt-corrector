@@ -113,15 +113,16 @@ enable_custom_replacements: true
 enable_fuzzy_matching: true
 fuzzy_threshold: 0.8
 custom_exclusions: ["pocket"]
+auto_collect_sources: ["floors", "areas", "devices", "entities"]
 language_config:
-  zh-tw:
-    strip_trailing_punctuation: true
-    trailing_punctuation: "。"
-    script_conversion: true
-    pinyin_matching: true
+  mandarin:
+    zh-tw:
+      stt_language: "zh"
+      opencc_mode: "traditional"
 ```
 
-The `language_config` field contains per-locale settings for supported languages. If no language settings have been configured, it will be an empty object.
+- `auto_collect_sources`: which HA registries to collect phrase names from. Valid values: `floors`, `areas`, `devices`, `entities`.
+- `language_config`: per-language module config keyed by module name (e.g., `mandarin`), then by normalized locale (e.g., `zh-tw`). Includes `stt_language` mapping and module-specific settings. Empty object if no language settings configured.
 
 ### `stt_corrector.set_correction_config`
 
@@ -134,10 +135,18 @@ data:
   custom_phrases: ["Living Room Light", "Kitchen Fan"]
   custom_replacements:
     "livin room": "living room"
+  enable_language_processing: true
   enable_custom_replacements: true
   enable_fuzzy_matching: true
   fuzzy_threshold: 0.8
+  auto_collect_sources: ["floors", "areas", "devices", "entities"]
+  language_config:
+    mandarin:
+      zh-tw:
+        stt_language: "zh"
 ```
+
+All fields are optional -- only provided fields are updated. Use `get_correction_config` to read the current state first.
 
 ## Testing & Debugging
 

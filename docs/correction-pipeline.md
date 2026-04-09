@@ -8,16 +8,39 @@ Each processor can be enabled or disabled independently in the **Active Processo
 
 ```mermaid
 flowchart LR
-    A[Voice Pipeline] -->|audio| B[Wrapped STT]
-    B -->|raw text| S1[Language Processing]
+    A[Voice Pipeline] -->|"audio + locale (e.g., zh-TW)"| B{Language Mapping}
+    B -->|"mapped language (e.g., zh)"| C[Wrapped STT]
+    C -->|raw text| S1[Language Processing]
     S1 --> S2[Custom Replacements]
     S2 --> S3[Similarity Matching]
     S3 -->|corrected text| A
 ```
 
+### STT Language Mapping
+
+Before audio reaches the wrapped STT engine, the corrector checks if the requested locale needs language mapping. This allows you to use locale variants (e.g., `zh-TW`) in your voice pipeline even when the underlying STT engine only supports a generic language code (e.g., `zh`).
+
+**How it works:**
+1. The voice pipeline sends audio with a locale (e.g., `zh-TW`)
+2. The corrector looks up the **STT Language** mapping for that locale
+3. If a mapping exists and differs from the locale, the corrector forwards the audio to the STT engine with the mapped language (e.g., `zh`)
+4. The STT engine transcribes the audio using its native language support
+5. The corrector runs the locale-specific correction pipeline (e.g., zh-TW script conversion) on the result
+
+**Auto-computed defaults:** When you haven't explicitly configured a mapping, the corrector auto-detects a match using prefix matching (e.g., `zh-TW` matches `zh` in the STT engine's supported languages). These locales automatically appear in your voice pipeline's language dropdown.
+
+**Three states per locale:**
+| State | Behavior |
+|-------|----------|
+| Not configured (default) | Auto-compute via prefix matching. If the STT engine supports `zh`, all Chinese locales are available. |
+| Mapped to a language (e.g., `zh`) | Explicitly enabled. Audio is forwarded with the mapped language. |
+| Set to "Disabled" (empty) | Locale is hidden from the voice pipeline. |
+
+You can configure mappings in **Language Settings > \<Language\> > \<Locale\> > STT Language**.
+
 ### Language Processing
 
-Applies locale-specific text normalization. The integration selects the appropriate language module based on the audio locale sent by the voice pipeline.
+Applies locale-specific text normalization. The integration selects the appropriate language module based on the audio locale sent by the voice pipeline (the original locale, not the mapped STT language).
 
 **Currently supported: Chinese (zh-TW, zh-HK, zh-CN)**
 

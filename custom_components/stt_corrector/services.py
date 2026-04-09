@@ -12,10 +12,13 @@ from homeassistant.exceptions import ServiceValidationError
 
 from .const import (
     CONF_ACTIVE_PROCESSORS,
+    CONF_AUTO_COLLECT_SOURCES,
     CONF_CUSTOM_EXCLUSIONS,
     CONF_CUSTOM_PHRASES,
     CONF_CUSTOM_REPLACEMENTS,
     CONF_FUZZY_THRESHOLD,
+    CONF_LANGUAGE_CONFIG,
+    CORRECTION_PROCESSOR_LANGUAGE,
     CORRECTION_PROCESSOR_REPLACEMENTS,
     CORRECTION_PROCESSOR_SIMILARITY,
     DOMAIN,
@@ -58,12 +61,15 @@ SCHEMA_SET_CORRECTION_CONFIG = vol.Schema(
         vol.Required("entity_id"): str,
         vol.Optional("custom_phrases"): [str],
         vol.Optional("custom_replacements"): {str: str},
+        vol.Optional("enable_language_processing"): bool,
         vol.Optional("enable_custom_replacements"): bool,
         vol.Optional("enable_fuzzy_matching"): bool,
         vol.Optional("fuzzy_threshold"): vol.All(
             vol.Coerce(float), vol.Range(min=0.5, max=1.0)
         ),
         vol.Optional("custom_exclusions"): [str],
+        vol.Optional("auto_collect_sources"): [str],
+        vol.Optional("language_config"): {str: {str: dict}},
     }
 )
 
@@ -319,10 +325,13 @@ async def async_handle_get_correction_config(
     return {
         "custom_phrases": cfg.custom_phrases,
         "custom_replacements": cfg.custom_replacements,
+        "enable_language_processing": cfg.enable_language_processing,
         "enable_custom_replacements": cfg.enable_custom_replacements,
         "enable_fuzzy_matching": cfg.enable_fuzzy_matching,
         "fuzzy_threshold": cfg.fuzzy_threshold,
         "custom_exclusions": cfg.custom_exclusions,
+        "auto_collect_sources": cfg.auto_collect_sources,
+        "language_config": cfg.language_config,
     }
 
 
@@ -355,35 +364,28 @@ async def async_handle_set_correction_config(
         new_options[CONF_CUSTOM_PHRASES] = list(data["custom_phrases"])
     if "custom_replacements" in data:
         new_options[CONF_CUSTOM_REPLACEMENTS] = dict(data["custom_replacements"])
-    if "enable_custom_replacements" in data or "enable_fuzzy_matching" in data:
+    processor_flags = {
+        "enable_language_processing": CORRECTION_PROCESSOR_LANGUAGE,
+        "enable_custom_replacements": CORRECTION_PROCESSOR_REPLACEMENTS,
+        "enable_fuzzy_matching": CORRECTION_PROCESSOR_SIMILARITY,
+    }
+    if any(flag in data for flag in processor_flags):
         current = list(new_options.get(CONF_ACTIVE_PROCESSORS, []))
-        if "enable_custom_replacements" in data:
-            if (
-                data["enable_custom_replacements"]
-                and CORRECTION_PROCESSOR_REPLACEMENTS not in current
-            ):
-                current.append(CORRECTION_PROCESSOR_REPLACEMENTS)
-            elif (
-                not data["enable_custom_replacements"]
-                and CORRECTION_PROCESSOR_REPLACEMENTS in current
-            ):
-                current.remove(CORRECTION_PROCESSOR_REPLACEMENTS)
-        if "enable_fuzzy_matching" in data:
-            if (
-                data["enable_fuzzy_matching"]
-                and CORRECTION_PROCESSOR_SIMILARITY not in current
-            ):
-                current.append(CORRECTION_PROCESSOR_SIMILARITY)
-            elif (
-                not data["enable_fuzzy_matching"]
-                and CORRECTION_PROCESSOR_SIMILARITY in current
-            ):
-                current.remove(CORRECTION_PROCESSOR_SIMILARITY)
+        for flag_key, processor in processor_flags.items():
+            if flag_key in data:
+                if data[flag_key] and processor not in current:
+                    current.append(processor)
+                elif not data[flag_key] and processor in current:
+                    current.remove(processor)
         new_options[CONF_ACTIVE_PROCESSORS] = current
     if "fuzzy_threshold" in data:
         new_options[CONF_FUZZY_THRESHOLD] = float(data["fuzzy_threshold"])
     if "custom_exclusions" in data:
         new_options[CONF_CUSTOM_EXCLUSIONS] = list(data["custom_exclusions"])
+    if "auto_collect_sources" in data:
+        new_options[CONF_AUTO_COLLECT_SOURCES] = list(data["auto_collect_sources"])
+    if "language_config" in data:
+        new_options[CONF_LANGUAGE_CONFIG] = dict(data["language_config"])
 
     await _update_options(hass, new_options, entity_id)
 

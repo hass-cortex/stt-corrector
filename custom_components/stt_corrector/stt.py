@@ -17,7 +17,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import CONF_WRAPPED_ENTITY_ID, DOMAIN
+from .const import (
+    CONF_LANGUAGE_CONFIG,
+    CONF_STT_LANGUAGE,
+    CONF_WRAPPED_ENTITY_ID,
+    DOMAIN,
+)
 from .correction import (
     CorrectionMethod,
     DiagnosticResult,
@@ -27,6 +32,7 @@ from .correction import (
     SpeechCorrector,
     TextProcessor,
 )
+from .correction.languages import normalize_locale
 from .correction.types import CorrectionChange
 from .correction_config import CorrectionConfig
 from .models import CorrectionStats, STTCorrectorRuntimeData
@@ -84,7 +90,57 @@ class CorrectedSTTEntity(SpeechToTextEntity):
         wrapped = self._get_wrapped_entity()
         if wrapped is None:
             return []
-        return wrapped.supported_languages
+        base = list(wrapped.supported_languages)
+        normalized_base = {normalize_locale(lang) for lang in base}
+        lang_config = self._options.get(CONF_LANGUAGE_CONFIG, {})
+        # Iterate all registered modules — locales may not be in stored config yet
+        for module in LanguageModuleRegistry.all_modules():
+            module_cfg = lang_config.get(module.module_key(), {})
+            for locale in module.locales():
+                norm = normalize_locale(locale)
+                if norm in normalized_base:
+                    continue
+                locale_cfg = module_cfg.get(norm, {})
+                if CONF_STT_LANGUAGE in locale_cfg:
+                    # Explicitly configured: "" means disabled, non-empty means mapped
+                    stt_lang = locale_cfg[CONF_STT_LANGUAGE]
+                    if not stt_lang:
+                        continue
+                else:
+                    # Not configured yet: auto-compute default
+                    stt_lang = module.default_stt_language(locale, base)
+                    if not stt_lang:
+                        continue
+                base.append(locale)
+                normalized_base.add(norm)
+        return base
+
+    def _get_mapped_stt_language(
+        self, locale: str, available_languages: list[str]
+    ) -> str | None:
+        """Look up the STT language mapping for a locale.
+
+        Args:
+            locale: The requested locale (e.g., "zh-TW").
+            available_languages: Languages the wrapped STT entity supports.
+
+        Returns:
+            The mapped STT language if different from the locale, or None.
+        """
+        normalized = normalize_locale(locale)
+        lang_config = self._options.get(CONF_LANGUAGE_CONFIG, {})
+        module = LanguageModuleRegistry.get_module_for_locale(locale)
+        if module is None:
+            return None
+        module_cfg = lang_config.get(module.module_key(), {})
+        locale_cfg = module_cfg.get(normalized, {})
+        if CONF_STT_LANGUAGE in locale_cfg:
+            stt_lang = locale_cfg[CONF_STT_LANGUAGE]
+        else:
+            stt_lang = module.default_stt_language(locale, available_languages)
+        if stt_lang and normalize_locale(stt_lang) != normalized:
+            return stt_lang
+        return None
 
     @property
     def supported_formats(self) -> list[Any]:
@@ -162,7 +218,23 @@ class CorrectedSTTEntity(SpeechToTextEntity):
             for chunk in audio_chunks:
                 yield chunk
 
-        result = await wrapped.async_process_audio_stream(metadata, replay())
+        # Remap language if locale has an stt_language mapping
+        mapped_lang = self._get_mapped_stt_language(
+            metadata.language, wrapped.supported_languages
+        )
+        if mapped_lang is not None:
+            forwarded_metadata = SpeechMetadata(
+                language=mapped_lang,
+                format=metadata.format,
+                codec=metadata.codec,
+                bit_rate=metadata.bit_rate,
+                sample_rate=metadata.sample_rate,
+                channel=metadata.channel,
+            )
+        else:
+            forwarded_metadata = metadata
+
+        result = await wrapped.async_process_audio_stream(forwarded_metadata, replay())
 
         if result.result == SpeechResultState.SUCCESS and result.text:
             if self._corrector_locale != metadata.language:

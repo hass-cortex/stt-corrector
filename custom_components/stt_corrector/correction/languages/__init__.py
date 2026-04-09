@@ -105,5 +105,30 @@ class LanguageModule(ABC):
         """
         return {}
 
+    def default_stt_language(self, locale: str, available_languages: list[str]) -> str:
+        """Return the default underlying STT language for a locale.
+
+        Checks for exact match first (case-insensitive), then prefix match.
+        Subclasses can override for language-specific heuristics.
+
+        Args:
+            locale: BCP-47 locale to find a mapping for (e.g., "zh-TW").
+            available_languages: Languages the wrapped STT entity supports.
+
+        Returns:
+            The best-matching language from available_languages, or "".
+        """
+        normalized = normalize_locale(locale)
+        # Exact match (case-insensitive)
+        for lang in available_languages:
+            if normalize_locale(lang) == normalized:
+                return lang
+        # Prefix match (zh-TW -> zh)
+        prefix = normalized.split("-")[0]
+        for lang in available_languages:
+            if normalize_locale(lang) == prefix:
+                return lang
+        return ""
+
 
 __all__ = ["LanguageModule", "TextProcessor", "PhoneticMatcher", "normalize_locale"]
