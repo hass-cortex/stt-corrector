@@ -86,5 +86,5 @@ pre_bump_hooks = ["uv lock", "git add uv.lock"]
 major_version_zero = true
 
 [dependency-groups]
-dev = ["ruff>=0.14.11", "mypy>=1.19", "commitizen>=4.0", "pre-commit>=4.0"]
+dev = ["ruff>=0.14.11", "mypy>=1.19", "commitizen>=4.13.10", "pre-commit>=4.0"]
 test = ["pytest>=9.0", "pytest-asyncio>=1.0", "pytest-cov>=7.0"]
