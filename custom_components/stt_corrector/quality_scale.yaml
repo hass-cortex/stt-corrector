@@ -96,6 +96,7 @@ rules:
   strict-typing:
     status: exempt
     comment: |
-      mypy strict enabled with relaxations for untyped HA stubs.
-      Full strict-typing requires homeassistant type stubs which are
-      not available for custom integrations running outside HA.
+      pyright standard mode enabled with reportMissingImports=none for
+      untyped HA stubs. Full strict-typing requires homeassistant type
+      stubs which are not available for custom integrations running
+      outside HA.
