@@ -26,6 +26,20 @@ repos:
         language: system
         pass_filenames: false
         files: ^custom_components/
+      - id: pyright
+        name: pyright (type check)
+        entry: uv run pyright
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        types: [python]
+      - id: pytest-unit
+        name: pytest (unit tests)
+        entry: uv run pytest tests/ -m "not integration" -q --tb=short
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        types: [python]
 
   - repo: https://github.com/commitizen-tools/commitizen
     rev: v4.8.1
