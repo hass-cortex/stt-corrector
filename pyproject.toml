@@ -42,8 +42,8 @@ target-version = "py314"
 line-length = 88
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "ASYNC", "B"]
-ignore = ["E501"]
+select = ["E", "F", "W", "I", "N", "UP", "ASYNC", "B", "SIM", "RUF013"]
+ignore = ["E501", "B008", "SIM108"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["E402"]
@@ -51,13 +51,17 @@ ignore = ["E501"]
 [tool.ruff.lint.isort]
 known-first-party = ["custom_components.stt_corrector"]
 
-[tool.mypy]
-python_version = "3.14"
-strict = true
-ignore_missing_imports = true
-warn_return_any = false
-disallow_subclassing_any = false
-disallow_untyped_decorators = false
+[tool.pyright]
+pythonVersion = "3.14"
+venvPath = "."
+venv = ".venv"
+include = ["custom_components"]
+exclude = ["tests", "**/__pycache__"]
+typeCheckingMode = "standard"
+useLibraryCodeForTypes = true
+# homeassistant is not installed in this repo (mocked in tests); suppress missing-import noise
+reportMissingImports = "none"
+reportMissingTypeStubs = "none"
 
 [tool.coverage.run]
 source = ["custom_components"]
@@ -86,5 +90,5 @@ pre_bump_hooks = ["uv lock", "git add uv.lock"]
 major_version_zero = true
 
 [dependency-groups]
-dev = ["ruff>=0.14.11", "mypy>=1.19", "commitizen>=4.0", "pre-commit>=4.0"]
+dev = ["ruff>=0.14.11", "pyright>=1.1.390", "commitizen>=4.0", "pre-commit>=4.0"]
 test = ["pytest>=9.0", "pytest-asyncio>=1.0", "pytest-cov>=7.0"]

@@ -88,14 +88,14 @@ class TestCorrectedSTTEntityProxy:
         mock_corrector.diagnose.return_value = mock_correction
         entity._corrector = mock_corrector
 
-        with patch.object(entity, "_build_corrector", return_value=mock_corrector):
-            with patch.object(entity, "_get_wrapped_entity", return_value=wrapped):
-                with patch.object(entity, "_phrase_builder") as mock_pb:
-                    mock_pb.build = AsyncMock(return_value=["phrase1"])
-                    metadata = MagicMock(language="en-US")
-                    result = await entity.async_process_audio_stream(
-                        metadata, _audio_stream()
-                    )
+        with (
+            patch.object(entity, "_build_corrector", return_value=mock_corrector),
+            patch.object(entity, "_get_wrapped_entity", return_value=wrapped),
+            patch.object(entity, "_phrase_builder") as mock_pb,
+        ):
+            mock_pb.build = AsyncMock(return_value=["phrase1"])
+            metadata = MagicMock(language="en-US")
+            result = await entity.async_process_audio_stream(metadata, _audio_stream())
 
         assert result.text == "hello corrected"
 
@@ -135,11 +135,13 @@ class TestCorrectedSTTEntityProxy:
             corrected="ok", original="ok", changes=[], candidates=[]
         )
 
-        with patch.object(entity, "_get_wrapped_entity", return_value=wrapped):
-            with patch.object(entity, "_phrase_builder") as mock_pb:
-                mock_pb.build = AsyncMock(return_value=[])
-                metadata = MagicMock(language="en-US")
-                await entity.async_process_audio_stream(metadata, _audio_stream(chunks))
+        with (
+            patch.object(entity, "_get_wrapped_entity", return_value=wrapped),
+            patch.object(entity, "_phrase_builder") as mock_pb,
+        ):
+            mock_pb.build = AsyncMock(return_value=[])
+            metadata = MagicMock(language="en-US")
+            await entity.async_process_audio_stream(metadata, _audio_stream(chunks))
 
         assert captured_chunks == chunks
 
@@ -156,11 +158,13 @@ class TestCorrectedSTTEntityProxy:
             corrected="hello", original="hello", changes=[], candidates=[]
         )
 
-        with patch.object(entity, "_get_wrapped_entity", return_value=wrapped):
-            with patch.object(entity, "_phrase_builder") as mock_pb:
-                mock_pb.build = AsyncMock(return_value=[])
-                metadata = MagicMock(language="en-US")
-                await entity.async_process_audio_stream(metadata, _audio_stream())
+        with (
+            patch.object(entity, "_get_wrapped_entity", return_value=wrapped),
+            patch.object(entity, "_phrase_builder") as mock_pb,
+        ):
+            mock_pb.build = AsyncMock(return_value=[])
+            metadata = MagicMock(language="en-US")
+            await entity.async_process_audio_stream(metadata, _audio_stream())
 
         sensor.handle_transcription.assert_called_once()
         stats = sensor.handle_transcription.call_args[0][0]
@@ -363,16 +367,18 @@ class TestLanguageRemapping:
             corrected="你好", original="你好", changes=[], candidates=[]
         )
 
-        with patch.object(entity, "_get_wrapped_entity", return_value=wrapped):
-            with patch.object(entity, "_phrase_builder") as mock_pb:
-                mock_pb.build = AsyncMock(return_value=[])
-                metadata = MagicMock(language="zh-TW")
-                metadata.format = "wav"
-                metadata.codec = "pcm"
-                metadata.bit_rate = 16
-                metadata.sample_rate = 16000
-                metadata.channel = 1
-                await entity.async_process_audio_stream(metadata, _audio_stream())
+        with (
+            patch.object(entity, "_get_wrapped_entity", return_value=wrapped),
+            patch.object(entity, "_phrase_builder") as mock_pb,
+        ):
+            mock_pb.build = AsyncMock(return_value=[])
+            metadata = MagicMock(language="zh-TW")
+            metadata.format = "wav"
+            metadata.codec = "pcm"
+            metadata.bit_rate = 16
+            metadata.sample_rate = 16000
+            metadata.channel = 1
+            await entity.async_process_audio_stream(metadata, _audio_stream())
 
         # Verify the wrapped entity received "zh" not "zh-TW"
         call_args = wrapped.async_process_audio_stream.call_args
@@ -391,11 +397,13 @@ class TestLanguageRemapping:
             corrected="hello", original="hello", changes=[], candidates=[]
         )
 
-        with patch.object(entity, "_get_wrapped_entity", return_value=wrapped):
-            with patch.object(entity, "_phrase_builder") as mock_pb:
-                mock_pb.build = AsyncMock(return_value=[])
-                metadata = MagicMock(language="en-US")
-                await entity.async_process_audio_stream(metadata, _audio_stream())
+        with (
+            patch.object(entity, "_get_wrapped_entity", return_value=wrapped),
+            patch.object(entity, "_phrase_builder") as mock_pb,
+        ):
+            mock_pb.build = AsyncMock(return_value=[])
+            metadata = MagicMock(language="en-US")
+            await entity.async_process_audio_stream(metadata, _audio_stream())
 
         call_args = wrapped.async_process_audio_stream.call_args
         forwarded_metadata = call_args[0][0]
@@ -427,19 +435,21 @@ class TestLanguageRemapping:
             )
             return corrector
 
-        with patch.object(entity, "_get_wrapped_entity", return_value=wrapped):
-            with patch.object(
+        with (
+            patch.object(entity, "_get_wrapped_entity", return_value=wrapped),
+            patch.object(
                 entity, "_build_corrector", side_effect=capture_build_corrector
-            ):
-                with patch.object(entity, "_phrase_builder") as mock_pb:
-                    mock_pb.build = AsyncMock(return_value=[])
-                    metadata = MagicMock(language="zh-TW")
-                    metadata.format = "wav"
-                    metadata.codec = "pcm"
-                    metadata.bit_rate = 16
-                    metadata.sample_rate = 16000
-                    metadata.channel = 1
-                    await entity.async_process_audio_stream(metadata, _audio_stream())
+            ),
+            patch.object(entity, "_phrase_builder") as mock_pb,
+        ):
+            mock_pb.build = AsyncMock(return_value=[])
+            metadata = MagicMock(language="zh-TW")
+            metadata.format = "wav"
+            metadata.codec = "pcm"
+            metadata.bit_rate = 16
+            metadata.sample_rate = 16000
+            metadata.channel = 1
+            await entity.async_process_audio_stream(metadata, _audio_stream())
 
         # Corrector is built with original locale "zh-TW", not remapped "zh"
         assert build_locale == "zh-TW"
@@ -464,16 +474,18 @@ class TestLanguageRemapping:
             corrected="你好", original="你好", changes=[], candidates=[]
         )
 
-        with patch.object(entity, "_get_wrapped_entity", return_value=wrapped):
-            with patch.object(entity, "_phrase_builder") as mock_pb:
-                mock_pb.build = AsyncMock(return_value=[])
-                metadata = MagicMock(language="zh-TW")
-                metadata.format = "wav"
-                metadata.codec = "pcm"
-                metadata.bit_rate = 16
-                metadata.sample_rate = 16000
-                metadata.channel = 1
-                await entity.async_process_audio_stream(metadata, _audio_stream())
+        with (
+            patch.object(entity, "_get_wrapped_entity", return_value=wrapped),
+            patch.object(entity, "_phrase_builder") as mock_pb,
+        ):
+            mock_pb.build = AsyncMock(return_value=[])
+            metadata = MagicMock(language="zh-TW")
+            metadata.format = "wav"
+            metadata.codec = "pcm"
+            metadata.bit_rate = 16
+            metadata.sample_rate = 16000
+            metadata.channel = 1
+            await entity.async_process_audio_stream(metadata, _audio_stream())
 
         call_args = wrapped.async_process_audio_stream.call_args
         forwarded_metadata = call_args[0][0]

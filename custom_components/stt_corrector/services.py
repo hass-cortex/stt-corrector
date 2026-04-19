@@ -108,9 +108,11 @@ def _find_stt_entity(hass: HomeAssistant, entity_id: str) -> CorrectedSTTEntity:
 
     for cfg_entry in hass.config_entries.async_entries(DOMAIN):
         runtime_data = getattr(cfg_entry, "runtime_data", None)
-        if isinstance(runtime_data, STTCorrectorRuntimeData):
-            if runtime_data.entity.entity_id == entity_id:
-                return runtime_data.entity
+        if (
+            isinstance(runtime_data, STTCorrectorRuntimeData)
+            and runtime_data.entity.entity_id == entity_id
+        ):
+            return runtime_data.entity
     raise ServiceValidationError(
         f"No {DOMAIN} STT entity found with entity_id '{entity_id}'.",
         translation_domain=DOMAIN,
@@ -132,9 +134,11 @@ def _get_config_entry(hass: HomeAssistant, entity_id: str) -> ConfigEntry:
 
     for cfg_entry in hass.config_entries.async_entries(DOMAIN):
         runtime_data = getattr(cfg_entry, "runtime_data", None)
-        if isinstance(runtime_data, STTCorrectorRuntimeData):
-            if runtime_data.entity.entity_id == entity_id:
-                return cfg_entry
+        if (
+            isinstance(runtime_data, STTCorrectorRuntimeData)
+            and runtime_data.entity.entity_id == entity_id
+        ):
+            return cfg_entry
     raise ServiceValidationError(
         f"No {DOMAIN} config entry found for entity_id '{entity_id}'.",
         translation_domain=DOMAIN,
@@ -344,20 +348,21 @@ async def async_handle_set_correction_config(
     entry = _get_config_entry(hass, entity_id)
 
     # Validate input limits
-    if "custom_replacements" in data:
-        if len(data["custom_replacements"]) > MAX_REPLACEMENT_RULES:
-            raise ServiceValidationError(
-                f"Replacement rules would exceed maximum of {MAX_REPLACEMENT_RULES}",
-                translation_domain=DOMAIN,
-                translation_key="replacement_rules_exceeded",
-            )
-    if "custom_phrases" in data:
-        if len(data["custom_phrases"]) > MAX_PHRASE_LIST_SIZE:
-            raise ServiceValidationError(
-                f"Phrase list would exceed maximum size of {MAX_PHRASE_LIST_SIZE}",
-                translation_domain=DOMAIN,
-                translation_key="phrase_list_exceeded",
-            )
+    if (
+        "custom_replacements" in data
+        and len(data["custom_replacements"]) > MAX_REPLACEMENT_RULES
+    ):
+        raise ServiceValidationError(
+            f"Replacement rules would exceed maximum of {MAX_REPLACEMENT_RULES}",
+            translation_domain=DOMAIN,
+            translation_key="replacement_rules_exceeded",
+        )
+    if "custom_phrases" in data and len(data["custom_phrases"]) > MAX_PHRASE_LIST_SIZE:
+        raise ServiceValidationError(
+            f"Phrase list would exceed maximum size of {MAX_PHRASE_LIST_SIZE}",
+            translation_domain=DOMAIN,
+            translation_key="phrase_list_exceeded",
+        )
 
     new_options = dict(entry.options)
     if "custom_phrases" in data:

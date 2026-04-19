@@ -88,10 +88,7 @@ def _get_initial(base: str) -> str:
 
 def _are_similar_initials(a: str, b: str) -> bool:
     """Check if two initials belong to the same confusion group."""
-    for group in _SIMILAR_INITIALS:
-        if a in group and b in group:
-            return True
-    return False
+    return any(a in group and b in group for group in _SIMILAR_INITIALS)
 
 
 def _syllable_similarity(syl_a: str, syl_b: str) -> float:

@@ -12,7 +12,7 @@ Home Assistant custom integration that wraps any STT entity with a three-process
 - **Package manager**: `uv` (not pip)
 - **Testing**: pytest, pytest-asyncio (asyncio_mode = "auto"), pytest-cov
 - **Linting**: ruff (lint + format)
-- **Type checking**: mypy (ignore_missing_imports = true -- `homeassistant` is not installed)
+- **Type checking**: pyright (standard mode; `reportMissingImports = "none"` -- `homeassistant` is not installed)
 - **Version management**: commitizen (`cz bump`)
 - **CI**: GitHub Actions (lint, test, mypy, hassfest, lock-check)
 
@@ -70,7 +70,7 @@ uv run pytest tests/ -v                    # Run tests
 uv run pytest tests/ --cov=custom_components --cov-report=term-missing  # Coverage
 uv run ruff check .                        # Lint
 uv run ruff format .                       # Format
-uv run mypy custom_components/             # Type check
+uv run pyright                             # Type check
 uv run cz bump                             # Version bump (auto from commits)
 ```
 
@@ -92,7 +92,7 @@ uv run cz bump                             # Version bump (auto from commits)
 
 ## Known Issues
 
-- Pyright reports many `reportMissingImports` because `homeassistant` is not installed. These are expected -- we use mypy with `ignore_missing_imports = true` instead.
+- `homeassistant` is not installed as a dependency (it's mocked in tests), so pyright is configured with `reportMissingImports = "none"` and `reportMissingTypeStubs = "none"`. IDE setups (e.g. Pylance) may still surface those import warnings locally; suppress them per-workspace if noisy.
 
 ## Quality Scale
 

@@ -16,7 +16,7 @@ updates:
       dev-deps:
         patterns:
           - "ruff"
-          - "mypy"
+          - "pyright"
 
   - package-ecosystem: "github-actions"
     directory: "/"

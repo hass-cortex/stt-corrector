@@ -25,7 +25,7 @@ jobs:
       - run: uv run ruff format --check .
 
   typecheck:
-    name: Type Check (mypy)
+    name: Type Check (pyright)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -34,7 +34,7 @@ jobs:
           enable-cache: true
           cache-suffix: typecheck
       - run: uv sync --frozen --group dev --group test
-      - run: uv run mypy custom_components/
+      - run: uv run pyright
 
   test:
     name: Test (Python ${{ matrix.python-version }})
