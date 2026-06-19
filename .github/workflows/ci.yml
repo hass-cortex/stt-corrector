@@ -15,7 +15,7 @@ jobs:
     name: Lint (ruff)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           enable-cache: true
@@ -28,7 +28,7 @@ jobs:
     name: Type Check (pyright)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           enable-cache: true
@@ -43,7 +43,7 @@ jobs:
       matrix:
         python-version: ["3.14"]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           enable-cache: true
@@ -68,7 +68,7 @@ jobs:
     name: Lock File Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           enable-cache: true
