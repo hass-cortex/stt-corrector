@@ -25,6 +25,7 @@ from .const import (
 )
 from .correction import (
     CorrectionMethod,
+    CorrectionResult,
     DiagnosticResult,
     LanguageModuleRegistry,
     ReplacementProcessor,
@@ -247,10 +248,15 @@ class CorrectedSTTEntity(SpeechToTextEntity):
                 for category, items in self._phrase_builder.categories.items():
                     if items:
                         _LOGGER.debug("  %s (%d): %s", category, len(items), items)
-            self._corrector.update_phrases(phrases)
-
             cfg = CorrectionConfig.from_options(self._options)
-            correction = self._corrector.diagnose(result.text)
+            self._corrector.update_phrases(phrases)
+            # diagnose() also materializes the fuzzy candidate scores for the DEBUG log; production
+            # only needs the corrected text, so it takes the lighter correct().
+            correction: CorrectionResult | DiagnosticResult = (
+                self._corrector.diagnose(result.text)
+                if _LOGGER.isEnabledFor(logging.DEBUG)
+                else self._corrector.correct(result.text)
+            )
             elapsed_ms = (time.monotonic() - t0) * 1000
             self._log_correction_result(correction, cfg)
 
@@ -298,7 +304,7 @@ class CorrectedSTTEntity(SpeechToTextEntity):
 
     def _log_correction_result(
         self,
-        correction: DiagnosticResult,
+        correction: CorrectionResult | DiagnosticResult,
         cfg: CorrectionConfig,
     ) -> None:
         """Log correction pipeline results at appropriate levels."""
@@ -311,6 +317,10 @@ class CorrectedSTTEntity(SpeechToTextEntity):
 
         if not _LOGGER.isEnabledFor(logging.DEBUG):
             return
+
+        # Only diagnose() (the DEBUG path) carries candidates; correct() (production) does not.
+        # We only reach here with DEBUG on, so a diagnose() result is expected — default to [].
+        candidates = getattr(correction, "candidates", [])
 
         # Partition changes by method
 
@@ -354,7 +364,7 @@ class CorrectedSTTEntity(SpeechToTextEntity):
                 change.corrected_segment,
             )
 
-        excluded_count = sum(1 for c in correction.candidates if c.excluded)
+        excluded_count = sum(1 for c in candidates if c.excluded)
         _LOGGER.debug(
             "Correction [similarity]: %s, threshold=%.2f, %d applied, %d exclusions (%d hit)",
             "ON" if cfg.enable_fuzzy_matching else "OFF",
@@ -371,8 +381,8 @@ class CorrectedSTTEntity(SpeechToTextEntity):
                 change.confidence,
             )
 
-        if correction.candidates:
-            top3 = correction.candidates[:3]
+        if candidates:
+            top3 = candidates[:3]
             _LOGGER.debug("Top candidates:")
             for c in top3:
                 status = (

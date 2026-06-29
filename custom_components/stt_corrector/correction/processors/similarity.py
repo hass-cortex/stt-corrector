@@ -36,7 +36,6 @@ class SimilarityProcessor(TextProcessor):
             matchers=matchers,
             exclusions=exclusions,
         )
-        self._last_input: str | None = None
 
     def process(self, text: str) -> tuple[str, list[CorrectionChange]]:
         """Apply fuzzy matching corrections to text.
@@ -47,9 +46,8 @@ class SimilarityProcessor(TextProcessor):
         Returns:
             Tuple of (corrected_text, list_of_changes).
         """
-        self._last_input = text
-        if not text:
-            return text, []
+        # Delegate empty text to correct() too: it returns (text, []) and resets the candidate
+        # cache, so an empty turn after a non-empty one doesn't leave stale diagnostic candidates.
         return self._fuzzy.correct(text)
 
     def update_phrases(self, phrases: list[str]) -> None:
@@ -61,7 +59,9 @@ class SimilarityProcessor(TextProcessor):
         self._fuzzy.update_phrases(phrases)
 
     def find_candidates(self, min_score: float = 0.5) -> list[CorrectionCandidate]:
-        """Find all candidate matches from the last process() call.
+        """Return the candidates captured during the last process() call.
+
+        Empty before any process() call.
 
         Args:
             min_score: Minimum similarity score to include.
@@ -69,6 +69,4 @@ class SimilarityProcessor(TextProcessor):
         Returns:
             List of CorrectionCandidate sorted by score descending.
         """
-        if self._last_input is None:
-            return []
-        return self._fuzzy.find_candidates(self._last_input, min_score)
+        return self._fuzzy.last_candidates(min_score)

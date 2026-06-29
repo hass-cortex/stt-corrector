@@ -85,7 +85,7 @@ class TestCorrectedSTTEntityProxy:
         mock_correction.changes = []
         mock_correction.candidates = []
         mock_corrector = MagicMock()
-        mock_corrector.diagnose.return_value = mock_correction
+        mock_corrector.correct.return_value = mock_correction
         entity._corrector = mock_corrector
 
         with (
@@ -131,7 +131,7 @@ class TestCorrectedSTTEntityProxy:
         wrapped.async_process_audio_stream = capture_stream
 
         entity._corrector = MagicMock()
-        entity._corrector.diagnose.return_value = MagicMock(
+        entity._corrector.correct.return_value = MagicMock(
             corrected="ok", original="ok", changes=[], candidates=[]
         )
 
@@ -154,7 +154,7 @@ class TestCorrectedSTTEntityProxy:
         entity = CorrectedSTTEntity(mock_hass, entry)
 
         entity._corrector = MagicMock()
-        entity._corrector.diagnose.return_value = MagicMock(
+        entity._corrector.correct.return_value = MagicMock(
             corrected="hello", original="hello", changes=[], candidates=[]
         )
 
@@ -169,6 +169,32 @@ class TestCorrectedSTTEntityProxy:
         sensor.handle_transcription.assert_called_once()
         stats = sensor.handle_transcription.call_args[0][0]
         assert stats.result_state == "success"
+
+    @pytest.mark.asyncio
+    async def test_production_uses_correct_not_diagnose(self, mock_hass):
+        """Production uses correct(); diagnose() (which re-runs the fuzzy scan only for DEBUG
+        candidate logging) is skipped when DEBUG is off."""
+        entry = _make_config_entry()
+        wrapped = _make_wrapped_entity(text="hello")
+        entity = CorrectedSTTEntity(mock_hass, entry)
+
+        mock_corrector = MagicMock()
+        mock_corrector.correct.return_value = MagicMock(
+            corrected="hi", original="hello", changes=[], candidates=[]
+        )
+        entity._corrector = mock_corrector
+
+        with (
+            patch.object(entity, "_build_corrector", return_value=mock_corrector),
+            patch.object(entity, "_get_wrapped_entity", return_value=wrapped),
+            patch.object(entity, "_phrase_builder") as mock_pb,
+        ):
+            mock_pb.build = AsyncMock(return_value=[])
+            metadata = MagicMock(language="en-US")
+            await entity.async_process_audio_stream(metadata, _audio_stream())
+
+        mock_corrector.correct.assert_called_once_with("hello")
+        mock_corrector.diagnose.assert_not_called()
 
 
 class TestCorrectedSTTEntityProperties:
@@ -363,7 +389,7 @@ class TestLanguageRemapping:
         entity = CorrectedSTTEntity(mock_hass, entry)
 
         entity._corrector = MagicMock()
-        entity._corrector.diagnose.return_value = MagicMock(
+        entity._corrector.correct.return_value = MagicMock(
             corrected="你好", original="你好", changes=[], candidates=[]
         )
 
@@ -393,7 +419,7 @@ class TestLanguageRemapping:
         entity = CorrectedSTTEntity(mock_hass, entry)
 
         entity._corrector = MagicMock()
-        entity._corrector.diagnose.return_value = MagicMock(
+        entity._corrector.correct.return_value = MagicMock(
             corrected="hello", original="hello", changes=[], candidates=[]
         )
 
@@ -430,7 +456,7 @@ class TestLanguageRemapping:
             nonlocal build_locale
             build_locale = locale
             corrector = MagicMock()
-            corrector.diagnose.return_value = MagicMock(
+            corrector.correct.return_value = MagicMock(
                 corrected="你好", original="你好", changes=[], candidates=[]
             )
             return corrector
@@ -470,7 +496,7 @@ class TestLanguageRemapping:
         entity = CorrectedSTTEntity(mock_hass, entry)
 
         entity._corrector = MagicMock()
-        entity._corrector.diagnose.return_value = MagicMock(
+        entity._corrector.correct.return_value = MagicMock(
             corrected="你好", original="你好", changes=[], candidates=[]
         )
 
