@@ -254,6 +254,7 @@ _ha_helpers_selector.TextSelector = MagicMock()
 _ha_helpers_selector.TextSelectorConfig = MagicMock()
 _ha_helpers_selector.SelectSelector = MagicMock()
 _ha_helpers_selector.SelectSelectorConfig = MagicMock()
+_ha_helpers_selector.SelectSelectorMode = MagicMock(DROPDOWN="dropdown", LIST="list")
 _ha_helpers_selector.SelectOptionDict = dict
 
 

@@ -19,6 +19,7 @@ from homeassistant.helpers.selector import (
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
+    SelectSelectorMode,
     TextSelector,
     TextSelectorConfig,
 )
@@ -153,8 +154,13 @@ class STTCorrectorConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-ar
             for entry in self._async_current_entries()
         ]
         if template_options:
+            # Explicit dropdown — the default renders as radio buttons
+            # when there are five or fewer options.
             fields[vol.Optional(CONF_COPY_FROM)] = SelectSelector(
-                SelectSelectorConfig(options=template_options)
+                SelectSelectorConfig(
+                    options=template_options,
+                    mode=SelectSelectorMode.DROPDOWN,
+                )
             )
         return self.async_show_form(step_id="user", data_schema=vol.Schema(fields))
 
