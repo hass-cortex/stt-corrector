@@ -37,6 +37,8 @@ Audio -----> Wrapped STT -----> Raw Text -----> Correction Pipeline -----> Final
 - **Language-aware matching** -- pinyin syllable comparison for Chinese, SequenceMatcher for other languages
 - **Runtime statistics** -- 9 sensor entities tracking usage and correction performance ([details](docs/sensors.md))
 - **Management services** -- 10 services for runtime configuration with entity targeting ([details](docs/services.md))
+- **Config reuse** -- copy correction settings between correctors via service or the "Copy settings from" option at setup
+- **Self-healing source binding** -- swap the wrapped STT entity via Reconfigure; if it disappears, a fixable Repairs issue guides you to a replacement without touching pipelines
 - **Extensible language framework** -- add support for new languages by implementing a language module
 - **Fully local** -- no external API calls; all correction runs on your HA instance
 
@@ -117,6 +119,14 @@ Use the `test_correction` service to test corrections without sending actual aud
 **Which STT providers can I wrap?**
 
 Any Home Assistant STT entity -- Azure Speech-to-Text, Whisper, Google Cloud STT, or any other integration that creates an `stt.*` entity. The corrector does not modify the wrapped entity in any way.
+
+**What happens if the wrapped STT entity is removed or renamed by its integration?**
+
+The corrector raises a fixable issue in **Settings → System → Repairs**. Press "Fix", pick a replacement STT entity, and everything else (correction settings, the corrected entity ID, voice pipeline assignments) is preserved. You can also swap the source proactively via the integration's **Reconfigure** menu.
+
+**Can I copy correction settings to another corrector?**
+
+Yes — either pick "Copy settings from" when creating a new corrector, or call `stt_corrector.copy_correction_config` with a source and one or more targets ([details](docs/services.md)).
 
 **Can I wrap an already-wrapped entity?**
 

@@ -23,7 +23,8 @@ custom_components/stt_corrector/
 ├── __init__.py          # Entry point: async_setup_entry, async_unload_entry, pypinyin preload
 ├── stt.py               # CorrectedSTTEntity -- proxy STT entity wrapping any HA STT provider
 ├── sensor.py            # 9 correction statistics sensors (RestoreSensor-based)
-├── config_flow.py       # Setup (select wrapped STT entity) + options (correction settings)
+├── config_flow.py       # Setup (wrapped entity + optional settings template), reconfigure (swap source), options
+├── repairs.py           # Fixable repair flow: pick a replacement when the wrapped entity is gone
 ├── correction_config.py # CorrectionConfig dataclass (no Azure-specific fields)
 ├── phrase_builder.py    # Collects names from HA registries (floors, areas, devices, exposed entities)
 ├── services.py          # 10 HA services with vol.Schema validation
@@ -55,6 +56,8 @@ custom_components/stt_corrector/
 - **runtime_data**: Uses typed `STTCorrectorRuntimeData` dataclass (in `models.py`). Access entity via `runtime_data.entity`, sensors via `runtime_data.sensors`. Use `helpers.find_corrected_stt_entity()` to retrieve the STT entity.
 - **Sensor push updates**: STT entity calls `_notify_sensors()` after each proxy invocation. Sensors use `RestoreSensor` for state persistence across restarts.
 - **Wrapped entity resolution**: Tracked by entity registry ID (not entity_id string) to survive entity_id renames.
+- **Wrapped-entity lifecycle**: `async_step_reconfigure` swaps the source in place (entry_id, corrected entity unique_id/entity_id, and options all preserved, so voice pipelines keep working). If the wrapped entity disappears, `stt.py` raises a fixable repair issue (checked on add-to-hass and live via entity-registry events); the fix flow in `repairs.py` re-selects a source and self-clears.
+- **Config reuse**: `copy_correction_config` service copies the full options wholesale from one corrector to others; the setup dialog offers a "Copy settings from" template selector for new entries.
 - **Three-processor correction pipeline**: Language Processing (punctuation stripping, script conversion) → Custom Replacements → Similarity Matching. Processors are independently toggleable.
 - **LanguageModule framework**: Each language is a self-contained module (`correction/languages/`) providing processors (Language Processing), matchers (Similarity Matching), config schema, select options for dropdown settings, and per-locale defaults. Add new languages by subclassing `LanguageModule` and registering in `LanguageModuleRegistry`.
 - **Corrector lifecycle**: `SpeechCorrector` is rebuilt when the audio locale changes. Phrases are updated on the existing corrector before each correction.
