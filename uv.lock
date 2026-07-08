@@ -455,7 +455,7 @@ wheels = [
 
 [[package]]
 name = "stt-corrector"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "." }
 dependencies = [
     { name = "opencc-python-reimplemented" },
