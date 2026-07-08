@@ -1,6 +1,6 @@
 [project]
 name = "stt-corrector"
-version = "0.6.0"
+version = "0.6.1"
 description = "STT post-recognition correction integration for Home Assistant — wraps any STT entity with phonetic correction"
 readme = "README.md"
 requires-python = ">=3.14"
@@ -78,7 +78,7 @@ exclude_lines = [
 ]
 
 [tool.commitizen]
-version = "0.6.0"
+version = "0.6.1"
 version_files = [
     "pyproject.toml:version",
     "custom_components/stt_corrector/manifest.json:version",
