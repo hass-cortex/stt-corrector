@@ -79,6 +79,13 @@ SCHEMA_GET_CORRECTION_CONFIG = vol.Schema(
     }
 )
 
+SCHEMA_COPY_CORRECTION_CONFIG = vol.Schema(
+    {
+        vol.Required("source_entity_id"): str,
+        vol.Required("target_entity_id"): vol.Any(str, [str]),
+    }
+)
+
 SCHEMA_EXCLUSIONS = vol.Schema(
     {
         vol.Required("entity_id"): str,
@@ -395,6 +402,32 @@ async def async_handle_set_correction_config(
     await _update_options(hass, new_options, entity_id)
 
 
+async def async_handle_copy_correction_config(
+    hass: HomeAssistant, call: ServiceCall
+) -> None:
+    """Copy the full correction configuration to other correctors.
+
+    The source's options (replacements, phrases, processors, thresholds,
+    exclusions, auto-collect sources, language settings) replace each
+    target's options wholesale. The wrapped entity is never touched.
+    """
+    source_id: str = call.data["source_entity_id"]
+    targets = call.data["target_entity_id"]
+    if isinstance(targets, str):
+        targets = [targets]
+
+    source_entry = _get_config_entry(hass, source_id)
+    for target_id in targets:
+        if target_id == source_id:
+            raise ServiceValidationError(
+                "source_entity_id and target_entity_id must differ",
+                translation_domain=DOMAIN,
+                translation_key="copy_source_is_target",
+            )
+        await _update_options(hass, dict(source_entry.options), target_id)
+        _LOGGER.info("Copied correction config from %s to %s", source_id, target_id)
+
+
 def async_register_services(hass: HomeAssistant) -> None:
     """Register integration services.
 
@@ -429,8 +462,17 @@ def async_register_services(hass: HomeAssistant) -> None:
     async def _remove_exclusions(call: ServiceCall) -> None:
         await async_handle_remove_exclusions(hass, call)
 
+    async def _copy_correction_config(call: ServiceCall) -> None:
+        await async_handle_copy_correction_config(hass, call)
+
     hass.services.async_register(
         DOMAIN, "add_phrases", _add_phrases, schema=SCHEMA_PHRASES
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "copy_correction_config",
+        _copy_correction_config,
+        schema=SCHEMA_COPY_CORRECTION_CONFIG,
     )
     hass.services.async_register(
         DOMAIN, "remove_phrases", _remove_phrases, schema=SCHEMA_PHRASES

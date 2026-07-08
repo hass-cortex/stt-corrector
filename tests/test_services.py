@@ -45,7 +45,7 @@ class TestRegisterServices:
     """Test service registration."""
 
     def test_register_services(self, mock_hass):
-        """async_register_services should register all 9 services."""
+        """async_register_services should register all 10 services."""
         from custom_components.stt_corrector.services import (
             async_register_services,
         )
@@ -65,6 +65,7 @@ class TestRegisterServices:
             "test_correction",
             "add_exclusions",
             "remove_exclusions",
+            "copy_correction_config",
         }
         assert registered == expected
 
@@ -851,3 +852,97 @@ class TestNoSTTEntity:
         call = _make_service_call({"entity_id": ENTITY_ID, "text": "hello"})
         with pytest.raises(ServiceValidationError, match="STT entity"):
             await async_handle_test_correction(mock_hass, call)
+
+
+class TestCopyCorrectionConfig:
+    """Test copy_correction_config service."""
+
+    def _entry_for(self, entity_id: str, options: dict) -> MagicMock:
+        entry = _make_config_entry(options)
+        entry.entry_id = f"entry_{entity_id}"
+        entry.runtime_data.entity.entity_id = entity_id
+        return entry
+
+    def _hass_with_entries(self, mock_hass, entries):
+        mock_hass.config_entries = MagicMock()
+        mock_hass.config_entries.async_entries = MagicMock(return_value=entries)
+        mock_hass.config_entries.async_update_entry = MagicMock()
+        return mock_hass
+
+    @pytest.mark.asyncio
+    async def test_copy_to_multiple_targets(self, mock_hass):
+        """Source options should replace every target's options."""
+        from custom_components.stt_corrector.services import (
+            async_handle_copy_correction_config,
+        )
+
+        source_options = {
+            "custom_replacements": {"熒幕": "螢幕"},
+            "fuzzy_threshold": 0.8,
+        }
+        source = self._entry_for("stt.source_corrected", source_options)
+        target_a = self._entry_for("stt.a_corrected", {"fuzzy_threshold": 0.6})
+        target_b = self._entry_for("stt.b_corrected", {})
+        self._hass_with_entries(mock_hass, [source, target_a, target_b])
+
+        call = _make_service_call(
+            {
+                "source_entity_id": "stt.source_corrected",
+                "target_entity_id": ["stt.a_corrected", "stt.b_corrected"],
+            }
+        )
+        await async_handle_copy_correction_config(mock_hass, call)
+
+        calls = mock_hass.config_entries.async_update_entry.call_args_list
+        assert len(calls) == 2
+        assert {c[0][0].entry_id for c in calls} == {
+            "entry_stt.a_corrected",
+            "entry_stt.b_corrected",
+        }
+        for c in calls:
+            assert c[1]["options"] == source_options
+            # A copy, not a shared reference.
+            assert c[1]["options"] is not source_options
+
+    @pytest.mark.asyncio
+    async def test_copy_accepts_single_target_string(self, mock_hass):
+        """A bare string target should behave like a one-element list."""
+        from custom_components.stt_corrector.services import (
+            async_handle_copy_correction_config,
+        )
+
+        source = self._entry_for("stt.source_corrected", {"fuzzy_threshold": 0.9})
+        target = self._entry_for("stt.a_corrected", {})
+        self._hass_with_entries(mock_hass, [source, target])
+
+        call = _make_service_call(
+            {
+                "source_entity_id": "stt.source_corrected",
+                "target_entity_id": "stt.a_corrected",
+            }
+        )
+        await async_handle_copy_correction_config(mock_hass, call)
+
+        assert mock_hass.config_entries.async_update_entry.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_copy_rejects_source_as_target(self, mock_hass):
+        """Copying an entry onto itself should raise."""
+        from homeassistant.exceptions import ServiceValidationError
+
+        from custom_components.stt_corrector.services import (
+            async_handle_copy_correction_config,
+        )
+
+        source = self._entry_for("stt.source_corrected", {})
+        self._hass_with_entries(mock_hass, [source])
+
+        call = _make_service_call(
+            {
+                "source_entity_id": "stt.source_corrected",
+                "target_entity_id": ["stt.source_corrected"],
+            }
+        )
+        with pytest.raises(ServiceValidationError):
+            await async_handle_copy_correction_config(mock_hass, call)
+        mock_hass.config_entries.async_update_entry.assert_not_called()

@@ -45,7 +45,7 @@ class TestAsyncSetup:
         result = await async_setup(mock_hass, {})
 
         assert result is True
-        assert mock_hass.services.async_register.call_count == 9
+        assert mock_hass.services.async_register.call_count == 10
 
 
 class TestAsyncSetupEntry:

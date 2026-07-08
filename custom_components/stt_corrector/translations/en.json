@@ -5,16 +5,29 @@
         "title": "STT Corrector",
         "description": "Set up STT correction for a speech-to-text entity.",
         "data": {
+          "wrapped_entity_id": "STT Entity",
+          "copy_from": "Copy settings from (optional)"
+        },
+        "data_description": {
+          "wrapped_entity_id": "Select the speech-to-text entity to wrap with correction.",
+          "copy_from": "Start with the correction settings of an existing corrector instead of a blank configuration."
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure STT Corrector",
+        "description": "Change the wrapped speech-to-text entity. Correction settings and the corrected entity ID are preserved.",
+        "data": {
           "wrapped_entity_id": "STT Entity"
         },
         "data_description": {
-          "wrapped_entity_id": "Select the speech-to-text entity to wrap with correction."
+          "wrapped_entity_id": "Select the new speech-to-text entity to wrap with correction."
         }
       }
     },
     "abort": {
       "already_configured": "This STT entity is already configured.",
-      "no_stt_entities": "No compatible STT entities found. Please set up an STT integration first."
+      "no_stt_entities": "No compatible STT entities found. Please set up an STT integration first.",
+      "reconfigure_successful": "Re-configuration was successful."
     }
   },
   "options": {
@@ -36,27 +49,27 @@
           "active_processors": "Active Processors"
         },
         "data_description": {
-          "active_processors": "Processors are executed in order: Language Processing \u2192 Custom Replacements \u2192 Similarity Matching."
+          "active_processors": "Processors are executed in order: Language Processing → Custom Replacements → Similarity Matching."
         }
       },
       "language_settings": {
         "title": "Language Settings",
         "menu_options": {
-          "lang_mandarin": "Chinese (\u4e2d\u6587)",
-          "init": "\u2190 Back"
+          "lang_mandarin": "Chinese (中文)",
+          "init": "← Back"
         }
       },
       "lang_mandarin": {
-        "title": "Chinese (\u4e2d\u6587)",
+        "title": "Chinese (中文)",
         "description": "Configure per-locale Chinese language processing.",
         "data": {
-          "zh_tw": "zh-TW (\u7e41\u9ad4\u53f0\u7063)",
-          "zh_hk": "zh-HK (\u7e41\u9ad4\u9999\u6e2f)",
-          "zh_cn": "zh-CN (\u7b80\u4f53\u4e2d\u56fd)"
+          "zh_tw": "zh-TW (繁體台灣)",
+          "zh_hk": "zh-HK (繁體香港)",
+          "zh_cn": "zh-CN (简体中国)"
         },
         "sections": {
           "zh_tw": {
-            "name": "zh-TW (\u7e41\u9ad4\u53f0\u7063)",
+            "name": "zh-TW (繁體台灣)",
             "data": {
               "stt_language": "STT Language",
               "strip_trailing_punctuation": "Strip Trailing Punctuation",
@@ -68,12 +81,12 @@
               "stt_language": "Language to send to the underlying STT engine. Select a language to enable this locale in Voice Assistant.",
               "strip_trailing_punctuation": "Remove sentence-ending punctuation from STT output.",
               "trailing_punctuation": "Characters to strip from end of text.",
-              "script_conversion": "Select the OpenCC conversion mode. Default: s2tw (Simplified \u2192 Traditional, Taiwan).",
+              "script_conversion": "Select the OpenCC conversion mode. Default: s2tw (Simplified → Traditional, Taiwan).",
               "pinyin_matching": "Use pinyin similarity for fuzzy matching."
             }
           },
           "zh_hk": {
-            "name": "zh-HK (\u7e41\u9ad4\u9999\u6e2f)",
+            "name": "zh-HK (繁體香港)",
             "data": {
               "stt_language": "STT Language",
               "strip_trailing_punctuation": "Strip Trailing Punctuation",
@@ -85,12 +98,12 @@
               "stt_language": "Language to send to the underlying STT engine. Select a language to enable this locale in Voice Assistant.",
               "strip_trailing_punctuation": "Remove sentence-ending punctuation from STT output.",
               "trailing_punctuation": "Characters to strip from end of text.",
-              "script_conversion": "Select the OpenCC conversion mode. Default: s2hk (Simplified \u2192 Traditional, Hong Kong).",
+              "script_conversion": "Select the OpenCC conversion mode. Default: s2hk (Simplified → Traditional, Hong Kong).",
               "pinyin_matching": "Use pinyin similarity for fuzzy matching."
             }
           },
           "zh_cn": {
-            "name": "zh-CN (\u7b80\u4f53\u4e2d\u56fd)",
+            "name": "zh-CN (简体中国)",
             "data": {
               "stt_language": "STT Language",
               "strip_trailing_punctuation": "Strip Trailing Punctuation",
@@ -138,7 +151,7 @@
           "custom_exclusions": "Exclusions"
         },
         "data_description": {
-          "fuzzy_threshold": "Minimum similarity score (0.5\u20131.0) to accept a correction.",
+          "fuzzy_threshold": "Minimum similarity score (0.5–1.0) to accept a correction.",
           "custom_exclusions": "Words or phrases to exclude from similarity matching."
         }
       }
@@ -201,6 +214,9 @@
     },
     "replacement_rules_exceeded": {
       "message": "Replacement rules would exceed the maximum allowed count."
+    },
+    "copy_source_is_target": {
+      "message": "source_entity_id and target_entity_id must be different correctors."
     }
   },
   "services": {
@@ -292,15 +308,42 @@
           "name": "Entity ID",
           "description": "Target STT Corrector entity."
         },
-        "custom_phrases": { "name": "Custom phrases", "description": "List of phrases." },
-        "custom_replacements": { "name": "Custom replacements", "description": "Dictionary of replacement pairs." },
-        "enable_language_processing": { "name": "Enable language processing", "description": "Enable language processing (punctuation stripping, script conversion)." },
-        "enable_custom_replacements": { "name": "Enable replacements", "description": "Enable custom replacement rules." },
-        "enable_fuzzy_matching": { "name": "Enable fuzzy matching", "description": "Enable similarity matching." },
-        "fuzzy_threshold": { "name": "Fuzzy threshold", "description": "Matching sensitivity (0.5-1.0)." },
-        "custom_exclusions": { "name": "Custom exclusions", "description": "List of segments to never correct." },
-        "auto_collect_sources": { "name": "Auto-collect sources", "description": "Which registries to auto-collect phrases from (floors, areas, devices, entities)." },
-        "language_config": { "name": "Language config", "description": "Per-language module config with locale-specific settings." }
+        "custom_phrases": {
+          "name": "Custom phrases",
+          "description": "List of phrases."
+        },
+        "custom_replacements": {
+          "name": "Custom replacements",
+          "description": "Dictionary of replacement pairs."
+        },
+        "enable_language_processing": {
+          "name": "Enable language processing",
+          "description": "Enable language processing (punctuation stripping, script conversion)."
+        },
+        "enable_custom_replacements": {
+          "name": "Enable replacements",
+          "description": "Enable custom replacement rules."
+        },
+        "enable_fuzzy_matching": {
+          "name": "Enable fuzzy matching",
+          "description": "Enable similarity matching."
+        },
+        "fuzzy_threshold": {
+          "name": "Fuzzy threshold",
+          "description": "Matching sensitivity (0.5-1.0)."
+        },
+        "custom_exclusions": {
+          "name": "Custom exclusions",
+          "description": "List of segments to never correct."
+        },
+        "auto_collect_sources": {
+          "name": "Auto-collect sources",
+          "description": "Which registries to auto-collect phrases from (floors, areas, devices, entities)."
+        },
+        "language_config": {
+          "name": "Language config",
+          "description": "Per-language module config with locale-specific settings."
+        }
       }
     },
     "add_exclusions": {
@@ -311,7 +354,10 @@
           "name": "Entity ID",
           "description": "Target STT Corrector entity."
         },
-        "exclusions": { "name": "Exclusions", "description": "List of segments to exclude." }
+        "exclusions": {
+          "name": "Exclusions",
+          "description": "List of segments to exclude."
+        }
       }
     },
     "remove_exclusions": {
@@ -322,7 +368,29 @@
           "name": "Entity ID",
           "description": "Target STT Corrector entity."
         },
-        "exclusions": { "name": "Exclusions", "description": "List of segments to remove." }
+        "exclusions": {
+          "name": "Exclusions",
+          "description": "List of segments to remove."
+        }
+      }
+    }
+  },
+  "issues": {
+    "wrapped_entity_missing": {
+      "title": "STT source for {title} is missing",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Replace missing STT source",
+            "description": "The wrapped speech-to-text entity `{wrapped_entity_id}` for **{title}** no longer exists. Select a replacement — correction settings, the corrected entity ID, and voice pipelines are preserved.",
+            "data": {
+              "wrapped_entity_id": "STT Entity"
+            },
+            "data_description": {
+              "wrapped_entity_id": "Select the new speech-to-text entity to wrap with correction."
+            }
+          }
+        }
       }
     }
   }

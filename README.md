@@ -36,7 +36,7 @@ Audio -----> Wrapped STT -----> Raw Text -----> Correction Pipeline -----> Final
 - **Auto-collected phrase vocabulary** -- independently toggle collection from exposed entities, devices, areas, and floors
 - **Language-aware matching** -- pinyin syllable comparison for Chinese, SequenceMatcher for other languages
 - **Runtime statistics** -- 9 sensor entities tracking usage and correction performance ([details](docs/sensors.md))
-- **Management services** -- 9 services for runtime configuration with entity targeting ([details](docs/services.md))
+- **Management services** -- 10 services for runtime configuration with entity targeting ([details](docs/services.md))
 - **Extensible language framework** -- add support for new languages by implementing a language module
 - **Fully local** -- no external API calls; all correction runs on your HA instance
 

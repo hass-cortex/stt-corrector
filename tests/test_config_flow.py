@@ -409,3 +409,136 @@ class TestOptionsFlowSttLanguageDropdown:
         assert (
             saved_options["language_config"]["mandarin"]["zh-cn"]["stt_language"] == ""
         )
+
+
+class TestConfigFlowReconfigure:
+    def _flow_with_entry(self, mock_hass, entry):
+        flow = STTCorrectorConfigFlow()
+        flow.hass = mock_hass
+        flow._get_reconfigure_entry = MagicMock(return_value=entry)
+        flow._async_current_entries = MagicMock(return_value=[entry])
+        flow.async_update_reload_and_abort = MagicMock(
+            return_value={"type": "abort", "reason": "reconfigure_successful"}
+        )
+        return flow
+
+    @staticmethod
+    def _entry(
+        entry_id="entry-1", wrapped="stt.old_source", unique_id="stt.old_source"
+    ):
+        entry = MagicMock()
+        entry.entry_id = entry_id
+        entry.unique_id = unique_id
+        entry.data = {"wrapped_entity_id": wrapped}
+        return entry
+
+    @pytest.mark.asyncio
+    async def test_shows_form_with_current_source_default(self, mock_hass):
+        import homeassistant.helpers.entity_registry as er
+
+        ent_reg = MagicMock()
+        ent_reg.entities.values.return_value = [_make_entity_entry("stt.new_source")]
+        er.async_get.return_value = ent_reg
+
+        flow = self._flow_with_entry(mock_hass, self._entry())
+        result = await flow.async_step_reconfigure()
+        assert result["type"] == "form"
+        assert result["step_id"] == "reconfigure"
+
+    @pytest.mark.asyncio
+    async def test_reconfigure_updates_entry_and_preserves_it(self, mock_hass):
+        import homeassistant.helpers.entity_registry as er
+
+        ent_reg = MagicMock()
+        ent_reg.entities.values.return_value = [_make_entity_entry("stt.new_source")]
+        er.async_get.return_value = ent_reg
+        mock_hass.states.get.return_value = MagicMock(
+            attributes={"friendly_name": "New Source"}
+        )
+
+        entry = self._entry()
+        flow = self._flow_with_entry(mock_hass, entry)
+        result = await flow.async_step_reconfigure(
+            {"wrapped_entity_id": "stt.new_source"}
+        )
+        assert result["reason"] == "reconfigure_successful"
+        flow.async_update_reload_and_abort.assert_called_once_with(
+            entry,
+            unique_id="stt.new_source",
+            title="New Source Corrected",
+            data={"wrapped_entity_id": "stt.new_source"},
+        )
+
+    @pytest.mark.asyncio
+    async def test_reconfigure_aborts_when_another_entry_wraps_target(self, mock_hass):
+        import homeassistant.helpers.entity_registry as er
+
+        ent_reg = MagicMock()
+        ent_reg.entities.values.return_value = [_make_entity_entry("stt.new_source")]
+        er.async_get.return_value = ent_reg
+
+        entry = self._entry()
+        other = self._entry(
+            entry_id="entry-2", wrapped="stt.new_source", unique_id="stt.new_source"
+        )
+        flow = self._flow_with_entry(mock_hass, entry)
+        flow._async_current_entries = MagicMock(return_value=[entry, other])
+
+        result = await flow.async_step_reconfigure(
+            {"wrapped_entity_id": "stt.new_source"}
+        )
+        assert result["type"] == "abort"
+        assert result["reason"] == "already_configured"
+        flow.async_update_reload_and_abort.assert_not_called()
+
+
+class TestConfigFlowTemplate:
+    def _flow(self, mock_hass, existing):
+        flow = STTCorrectorConfigFlow()
+        flow.hass = mock_hass
+        flow._async_current_entries = MagicMock(return_value=existing)
+        return flow
+
+    @pytest.mark.asyncio
+    async def test_create_with_template_copies_options(self, mock_hass):
+        import homeassistant.helpers.entity_registry as er
+
+        ent_reg = MagicMock()
+        ent_reg.entities.values.return_value = [_make_entity_entry("stt.new_source")]
+        er.async_get.return_value = ent_reg
+        mock_hass.states.get.return_value = MagicMock(
+            attributes={"friendly_name": "New Source"}
+        )
+
+        template = MagicMock()
+        template.entry_id = "tpl-entry"
+        template.title = "SenseVoice Small Corrected"
+        template.options = {
+            "fuzzy_threshold": 0.8,
+            "custom_replacements": {"熒幕": "螢幕"},
+        }
+        mock_hass.config_entries.async_get_entry = MagicMock(return_value=template)
+
+        flow = self._flow(mock_hass, [template])
+        result = await flow.async_step_user(
+            {"wrapped_entity_id": "stt.new_source", "copy_from": "tpl-entry"}
+        )
+        assert result["type"] == "create_entry"
+        assert result["options"] == template.options
+        assert result["options"] is not template.options
+
+    @pytest.mark.asyncio
+    async def test_create_without_template_starts_blank(self, mock_hass):
+        import homeassistant.helpers.entity_registry as er
+
+        ent_reg = MagicMock()
+        ent_reg.entities.values.return_value = [_make_entity_entry("stt.new_source")]
+        er.async_get.return_value = ent_reg
+        mock_hass.states.get.return_value = MagicMock(
+            attributes={"friendly_name": "New Source"}
+        )
+
+        flow = self._flow(mock_hass, [])
+        result = await flow.async_step_user({"wrapped_entity_id": "stt.new_source"})
+        assert result["type"] == "create_entry"
+        assert result["options"] == {}

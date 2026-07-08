@@ -5,6 +5,7 @@ from __future__ import annotations
 DOMAIN = "stt_corrector"
 
 # Config entry data keys
+CONF_COPY_FROM = "copy_from"
 CONF_WRAPPED_ENTITY_ID = "wrapped_entity_id"
 
 # Options keys — correction pipeline

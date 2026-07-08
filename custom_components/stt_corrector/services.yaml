@@ -188,3 +188,24 @@ remove_exclusions:
       example: '["pocket"]'
       selector:
         object:
+
+copy_correction_config:
+  description: 'Copy the full correction configuration from one corrector to others'
+  fields:
+    source_entity_id:
+      description: 'Corrector entity to copy the configuration from'
+      required: true
+      example: 'stt.sensevoice_small_corrected'
+      selector:
+        entity:
+          integration: stt_corrector
+          domain: stt
+    target_entity_id:
+      description: 'Corrector entity (or entities) that receive the configuration'
+      required: true
+      example: 'stt.moonshine_tiny_chinese_corrected'
+      selector:
+        entity:
+          integration: stt_corrector
+          domain: stt
+          multiple: true

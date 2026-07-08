@@ -26,7 +26,7 @@ custom_components/stt_corrector/
 ├── config_flow.py       # Setup (select wrapped STT entity) + options (correction settings)
 ├── correction_config.py # CorrectionConfig dataclass (no Azure-specific fields)
 ├── phrase_builder.py    # Collects names from HA registries (floors, areas, devices, exposed entities)
-├── services.py          # 9 HA services with vol.Schema validation
+├── services.py          # 10 HA services with vol.Schema validation
 ├── helpers.py           # find_corrected_stt_entity via runtime_data lookup
 ├── models.py            # STTCorrectorRuntimeData + CorrectionStats dataclasses
 ├── const.py             # Constants, defaults, config keys

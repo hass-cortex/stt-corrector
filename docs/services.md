@@ -192,13 +192,29 @@ Each entry in `changes` includes:
 
 Each entry in `candidates` includes an `excluded` flag indicating whether the match was blocked by the exclusion list.
 
+### `stt_corrector.copy_correction_config`
+
+Copy the **full** correction configuration (replacements, phrases, processor toggles, fuzzy threshold, exclusions, auto-collect sources, language settings) from one corrector to one or more others. The targets' options are replaced wholesale; wrapped entities are never touched.
+
+```yaml
+service: stt_corrector.copy_correction_config
+data:
+  source_entity_id: stt.sensevoice_small_corrected
+  target_entity_id:
+    - stt.moonshine_tiny_chinese_corrected
+    - stt.fun_asr_nano_multilingual_corrected
+```
+
+Tip: when creating a new corrector you can instead pick "Copy settings from" directly in the setup dialog.
+
 ## Migration Workflow
 
 Export from one instance, import to another:
 
 ```yaml
-# 1. Export: call get_correction_config, copy the response
-# 2. Import: paste into set_correction_config
+# Same-instance copies: prefer copy_correction_config (one call).
+# Cross-instance: 1. Export via get_correction_config, copy the response
+#                 2. Import: paste into set_correction_config
 service: stt_corrector.set_correction_config
 data:
   # paste the full get_correction_config response here

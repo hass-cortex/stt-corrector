@@ -30,6 +30,7 @@ from .const import (
     AUTO_COLLECT_FLOORS,
     CONF_ACTIVE_PROCESSORS,
     CONF_AUTO_COLLECT_SOURCES,
+    CONF_COPY_FROM,
     CONF_CUSTOM_EXCLUSIONS,
     CONF_CUSTOM_PHRASES,
     CONF_CUSTOM_REPLACEMENTS,
@@ -123,6 +124,13 @@ class STTCorrectorConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-ar
             await self.async_set_unique_id(entity_id)
             self._abort_if_unique_id_configured()
 
+            # Optionally start from an existing corrector's settings.
+            options: dict[str, Any] = {}
+            if template_entry_id := user_input.get(CONF_COPY_FROM):
+                template = self.hass.config_entries.async_get_entry(template_entry_id)
+                if template is not None:
+                    options = dict(template.options)
+
             state = self.hass.states.get(entity_id)
             friendly_name = (
                 state.attributes.get("friendly_name", entity_id)
@@ -132,16 +140,70 @@ class STTCorrectorConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-ar
             return self.async_create_entry(
                 title=f"{friendly_name} Corrected",
                 data={CONF_WRAPPED_ENTITY_ID: entity_id},
+                options=options,
+            )
+
+        fields: dict[Any, Any] = {
+            vol.Required(CONF_WRAPPED_ENTITY_ID): SelectSelector(
+                SelectSelectorConfig(options=stt_options)
+            ),
+        }
+        template_options = [
+            SelectOptionDict(value=entry.entry_id, label=entry.title)
+            for entry in self._async_current_entries()
+        ]
+        if template_options:
+            fields[vol.Optional(CONF_COPY_FROM)] = SelectSelector(
+                SelectSelectorConfig(options=template_options)
+            )
+        return self.async_show_form(step_id="user", data_schema=vol.Schema(fields))
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Re-select the wrapped STT entity.
+
+        Lets the entry point at a different source (e.g. after the
+        original wrapped entity was removed) while keeping the entry_id,
+        the corrected entity's unique_id/entity_id, and all correction
+        options — so voice pipelines referencing the corrected entity
+        keep working.
+        """
+        entry = self._get_reconfigure_entry()
+        stt_options = _get_stt_entities(self.hass)
+
+        if not stt_options and user_input is None:
+            return self.async_abort(reason="no_stt_entities")
+
+        if user_input is not None:
+            entity_id = user_input[CONF_WRAPPED_ENTITY_ID]
+            # Guard against wrapping an entity another entry already wraps.
+            for other in self._async_current_entries():
+                if other.entry_id != entry.entry_id and other.unique_id == entity_id:
+                    return self.async_abort(reason="already_configured")
+
+            state = self.hass.states.get(entity_id)
+            friendly_name = (
+                state.attributes.get("friendly_name", entity_id)
+                if state is not None
+                else entity_id
+            )
+            return self.async_update_reload_and_abort(
+                entry,
+                unique_id=entity_id,
+                title=f"{friendly_name} Corrected",
+                data={CONF_WRAPPED_ENTITY_ID: entity_id},
             )
 
         schema = vol.Schema(
             {
-                vol.Required(CONF_WRAPPED_ENTITY_ID): SelectSelector(
-                    SelectSelectorConfig(options=stt_options)
-                ),
+                vol.Required(
+                    CONF_WRAPPED_ENTITY_ID,
+                    default=entry.data.get(CONF_WRAPPED_ENTITY_ID),
+                ): SelectSelector(SelectSelectorConfig(options=stt_options)),
             }
         )
-        return self.async_show_form(step_id="user", data_schema=schema)
+        return self.async_show_form(step_id="reconfigure", data_schema=schema)
 
     @staticmethod
     def async_get_options_flow(config_entry: ConfigEntry) -> STTCorrectorOptionsFlow:

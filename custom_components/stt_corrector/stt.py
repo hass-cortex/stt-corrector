@@ -13,7 +13,7 @@ from homeassistant.components.stt import (
     SpeechResultState,
     SpeechToTextEntity,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -81,6 +81,7 @@ class CorrectedSTTEntity(SpeechToTextEntity):
         )
         self._corrector_locale: str | None = None
         self._corrector = self._build_corrector(cfg=cfg)
+        self._wrapped_registry_unsub: Any = None
 
     @property
     def _options(self) -> dict[str, Any]:
@@ -198,8 +199,65 @@ class CorrectedSTTEntity(SpeechToTextEntity):
         runtime_data.entity = self
         self._phrase_builder.async_start_listening()
 
+        # Surface a fixable repair when the wrapped entity is gone, and
+        # react live to it being removed/re-created in the registry.
+        self._async_update_wrapped_entity_issue()
+        wrapped_id = self._config_entry.data.get(CONF_WRAPPED_ENTITY_ID)
+        if wrapped_id:
+            from homeassistant.helpers.event import (
+                async_track_entity_registry_updated_event,
+            )
+
+            self._wrapped_registry_unsub = async_track_entity_registry_updated_event(
+                self._hass, wrapped_id, self._async_wrapped_registry_updated
+            )
+
     async def async_will_remove_from_hass(self) -> None:
         self._phrase_builder.async_stop_listening()
+        if self._wrapped_registry_unsub is not None:
+            self._wrapped_registry_unsub()
+            self._wrapped_registry_unsub = None
+
+    @callback
+    def _async_wrapped_registry_updated(self, _event: Any) -> None:
+        """Registry changed for the wrapped entity — refresh the issue."""
+        self._async_update_wrapped_entity_issue()
+
+    @callback
+    def _async_update_wrapped_entity_issue(self) -> None:
+        """Create (or clear) the wrapped-entity-missing repair issue."""
+        from homeassistant.helpers import entity_registry as er
+        from homeassistant.helpers import issue_registry as ir
+
+        from .repairs import wrapped_entity_issue_id
+
+        wrapped_id = self._config_entry.data.get(CONF_WRAPPED_ENTITY_ID)
+        missing = (
+            not wrapped_id or er.async_get(self._hass).async_get(wrapped_id) is None
+        )
+        issue_id = wrapped_entity_issue_id(self._config_entry.entry_id)
+
+        if missing:
+            _LOGGER.warning(
+                "Wrapped entity %s is gone; raising repair issue for %s",
+                wrapped_id,
+                self._config_entry.title,
+            )
+            ir.async_create_issue(
+                self._hass,
+                DOMAIN,
+                issue_id,
+                is_fixable=True,
+                severity=ir.IssueSeverity.ERROR,
+                translation_key="wrapped_entity_missing",
+                translation_placeholders={
+                    "title": self._config_entry.title,
+                    "wrapped_entity_id": str(wrapped_id or ""),
+                },
+                data={"entry_id": self._config_entry.entry_id},
+            )
+        else:
+            ir.async_delete_issue(self._hass, DOMAIN, issue_id)
 
     async def async_process_audio_stream(
         self, metadata: SpeechMetadata, stream: AsyncIterable[bytes]

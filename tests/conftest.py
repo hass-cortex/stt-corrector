@@ -75,6 +75,9 @@ class _MockConfigFlow:
     def async_abort(self, **kwargs):
         return {"type": "abort", **kwargs}
 
+    def _async_current_entries(self):
+        return []
+
     async def async_set_unique_id(self, unique_id):
         self._unique_id = unique_id
 
@@ -253,6 +256,48 @@ _ha_helpers_selector.SelectSelector = MagicMock()
 _ha_helpers_selector.SelectSelectorConfig = MagicMock()
 _ha_helpers_selector.SelectOptionDict = dict
 
+
+# issue_registry / repairs / helpers.event mocks (repair-flow feature)
+_ha_helpers_ir = ModuleType("homeassistant.helpers.issue_registry")
+
+
+class _MockIssueSeverity:
+    CRITICAL = "critical"
+    ERROR = "error"
+    WARNING = "warning"
+
+
+_ha_helpers_ir.IssueSeverity = _MockIssueSeverity
+_ha_helpers_ir.async_create_issue = MagicMock()
+_ha_helpers_ir.async_delete_issue = MagicMock()
+
+_ha_helpers_event = ModuleType("homeassistant.helpers.event")
+_ha_helpers_event.async_track_entity_registry_updated_event = MagicMock(
+    return_value=MagicMock()
+)
+
+_ha_components_repairs = ModuleType("homeassistant.components.repairs")
+
+
+class _MockRepairsFlow:
+    hass = None
+
+    def async_show_form(
+        self, *, step_id, data_schema=None, description_placeholders=None
+    ):
+        return {
+            "type": "form",
+            "step_id": step_id,
+            "data_schema": data_schema,
+            "description_placeholders": description_placeholders,
+        }
+
+    def async_create_entry(self, *, title, data):
+        return {"type": "create_entry", "title": title, "data": data}
+
+
+_ha_components_repairs.RepairsFlow = _MockRepairsFlow
+
 # Register all mocked modules
 for mod_name, mod in [
     ("homeassistant", _ha),
@@ -277,6 +322,9 @@ for mod_name, mod in [
     ("homeassistant.exceptions", _ha_exceptions),
     ("homeassistant.const", _ha_const),
     ("homeassistant.components.sensor", _ha_components_sensor),
+    ("homeassistant.helpers.issue_registry", _ha_helpers_ir),
+    ("homeassistant.helpers.event", _ha_helpers_event),
+    ("homeassistant.components.repairs", _ha_components_repairs),
 ]:
     sys.modules[mod_name] = mod
 
