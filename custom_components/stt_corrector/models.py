@@ -32,3 +32,4 @@ class CorrectionStats:
     raw_text: str | None = None
     corrected_text: str | None = None
     processing_time_ms: float | None = None
+    capture_device: str | None = None

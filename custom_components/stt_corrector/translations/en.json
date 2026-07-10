@@ -196,6 +196,9 @@
       },
       "last_processing_time": {
         "name": "Processing time"
+      },
+      "last_capture_device": {
+        "name": "Last capture device"
       }
     }
   },

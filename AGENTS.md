@@ -22,12 +22,13 @@ Home Assistant custom integration that wraps any STT entity with a three-process
 custom_components/stt_corrector/
 ├── __init__.py          # Entry point: async_setup_entry, async_unload_entry, pypinyin preload
 ├── stt.py               # CorrectedSTTEntity -- proxy STT entity wrapping any HA STT provider
-├── sensor.py            # 9 correction statistics sensors (RestoreSensor-based)
+├── sensor.py            # 10 correction statistics sensors (RestoreSensor-based)
 ├── config_flow.py       # Setup (wrapped entity + optional settings template), reconfigure (swap source), options
 ├── repairs.py           # Fixable repair flow: pick a replacement when the wrapped entity is gone
 ├── correction_config.py # CorrectionConfig dataclass (no Azure-specific fields)
 ├── phrase_builder.py    # Collects names from HA registries (floors, areas, devices, exposed entities)
 ├── services.py          # 10 HA services with vol.Schema validation
+├── capture.py           # Capture-device introspection (PipelineRun stream) + shared ContextVar relay to downstream STT
 ├── helpers.py           # find_corrected_stt_entity via runtime_data lookup
 ├── models.py            # STTCorrectorRuntimeData + CorrectionStats dataclasses
 ├── const.py             # Constants, defaults, config keys

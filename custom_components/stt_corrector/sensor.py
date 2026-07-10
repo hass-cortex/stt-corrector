@@ -113,6 +113,12 @@ SENSOR_DESCRIPTIONS: tuple[STTCorrectorSensorDescription, ...] = (
             s.processing_time_ms if s.processing_time_ms is not None else cur
         ),
     ),
+    STTCorrectorSensorDescription(
+        key="last_capture_device",
+        translation_key="last_capture_device",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        update_fn=lambda cur, s: s.capture_device or cur,
+    ),
 )
 
 

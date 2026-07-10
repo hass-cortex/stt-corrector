@@ -17,6 +17,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
+from .capture import capture_context_var, capture_device_from_stream
 from .const import (
     CONF_LANGUAGE_CONFIG,
     CONF_STT_LANGUAGE,
@@ -262,9 +263,33 @@ class CorrectedSTTEntity(SpeechToTextEntity):
     async def async_process_audio_stream(
         self, metadata: SpeechMetadata, stream: AsyncIterable[bytes]
     ) -> SpeechResult:
+        # Identify the capture device BEFORE consuming the stream (the
+        # original PipelineRun generator's frame is gone once exhausted),
+        # and relay it to the wrapped entity via the shared ContextVar —
+        # the replay generator below hides the run from downstream
+        # introspection. Reset in `finally` so no value leaks past this
+        # invocation.
+        capture_device = capture_device_from_stream(self._hass, stream)
+        capture_var = capture_context_var(self._hass)
+        capture_token = capture_var.set(capture_device)
+        try:
+            return await self._process_audio_stream(metadata, stream, capture_device)
+        finally:
+            capture_var.reset(capture_token)
+
+    async def _process_audio_stream(
+        self,
+        metadata: SpeechMetadata,
+        stream: AsyncIterable[bytes],
+        capture_device: str | None,
+    ) -> SpeechResult:
         wrapped = self._get_wrapped_entity()
         if wrapped is None:
-            self._push_stats(CorrectionStats(result_state="wrapped_unavailable"))
+            self._push_stats(
+                CorrectionStats(
+                    result_state="wrapped_unavailable", capture_device=capture_device
+                )
+            )
             return SpeechResult(text=None, result=SpeechResultState.ERROR)
 
         audio_chunks: list[bytes] = []
@@ -329,6 +354,7 @@ class CorrectedSTTEntity(SpeechToTextEntity):
                     raw_text=result.text,
                     corrected_text=corrected_text if correction_applied else None,
                     processing_time_ms=elapsed_ms,
+                    capture_device=capture_device,
                 )
             )
 
@@ -342,7 +368,11 @@ class CorrectedSTTEntity(SpeechToTextEntity):
         )
 
         self._push_stats(
-            CorrectionStats(result_state=result_state, language=metadata.language)
+            CorrectionStats(
+                result_state=result_state,
+                language=metadata.language,
+                capture_device=capture_device,
+            )
         )
         return result
 

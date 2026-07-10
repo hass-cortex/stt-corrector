@@ -516,3 +516,88 @@ class TestLanguageRemapping:
         call_args = wrapped.async_process_audio_stream.call_args
         forwarded_metadata = call_args[0][0]
         assert forwarded_metadata.language == "zh-TW"
+
+
+class TestCaptureDeviceRelay:
+    """Chain-head introspection + ContextVar relay (capture.py)."""
+
+    @staticmethod
+    def _pipeline_run_stream(satellite_id="assist_satellite.kitchen"):
+        """A stream shaped like assist_pipeline's PipelineRun generator."""
+
+        class PipelineRun:
+            def __init__(self):
+                self._device_id = None
+                self._satellite_id = satellite_id
+
+            async def _speech_to_text_stream(self):
+                yield b"audio_data"
+
+        return PipelineRun()._speech_to_text_stream()
+
+    @pytest.mark.asyncio
+    async def test_relays_capture_device_during_wrapped_call(self, mock_hass):
+        from custom_components.stt_corrector.capture import capture_context_var
+
+        mock_hass.data = {}
+        entry = _make_config_entry()
+        entity = CorrectedSTTEntity(mock_hass, entry)
+
+        seen: list[str | None] = []
+
+        async def wrapped_call(metadata, stream):
+            async for _ in stream:
+                pass
+            seen.append(capture_context_var(mock_hass).get())
+            result = MagicMock()
+            result.result = "error"
+            result.text = None
+            return result
+
+        wrapped = _make_wrapped_entity()
+        wrapped.async_process_audio_stream = AsyncMock(side_effect=wrapped_call)
+
+        with patch.object(entity, "_get_wrapped_entity", return_value=wrapped):
+            metadata = MagicMock(language="en-US")
+            await entity.async_process_audio_stream(
+                metadata, self._pipeline_run_stream()
+            )
+
+        # Visible to the wrapped entity during the call…
+        assert seen == ["assist_satellite.kitchen"]
+        # …and reset afterwards (no leak into later invocations).
+        assert capture_context_var(mock_hass).get() is None
+
+    @pytest.mark.asyncio
+    async def test_stats_carry_capture_device(self, mock_hass):
+        mock_hass.data = {}
+        entry = _make_config_entry()
+        entity = CorrectedSTTEntity(mock_hass, entry)
+
+        pushed: list = []
+        with (
+            patch.object(entity, "_get_wrapped_entity", return_value=None),
+            patch.object(entity, "_push_stats", side_effect=pushed.append),
+        ):
+            metadata = MagicMock(language="en-US")
+            await entity.async_process_audio_stream(
+                metadata, self._pipeline_run_stream()
+            )
+
+        assert pushed[0].capture_device == "assist_satellite.kitchen"
+
+    @pytest.mark.asyncio
+    async def test_plain_stream_relays_none(self, mock_hass):
+        mock_hass.data = {}
+        entry = _make_config_entry()
+        entity = CorrectedSTTEntity(mock_hass, entry)
+
+        pushed: list = []
+        with (
+            patch.object(entity, "_get_wrapped_entity", return_value=None),
+            patch.object(entity, "_push_stats", side_effect=pushed.append),
+        ):
+            metadata = MagicMock(language="en-US")
+            await entity.async_process_audio_stream(metadata, _audio_stream())
+
+        assert pushed[0].capture_device is None
