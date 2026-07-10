@@ -54,6 +54,19 @@ class TestWrappedEntityMissingRepairFlow:
         )
 
     @pytest.mark.asyncio
+    async def test_first_call_with_issue_data_shows_form(self, mock_hass):
+        """The repairs framework passes the ISSUE DATA dict (not None) on
+        the first invocation — it must show the form, not KeyError
+        (regression: 500 on opening the fix flow)."""
+        _registry_with(["stt.new_source"])
+        flow = WrappedEntityMissingRepairFlow(_entry())
+        flow.hass = mock_hass
+
+        result = await flow.async_step_init({"entry_id": "test_entry"})
+        assert result["type"] == "form"
+        assert result["step_id"] == "init"
+
+    @pytest.mark.asyncio
     async def test_submit_rewires_entry_and_reloads(self, mock_hass):
         _registry_with(["stt.new_source"])
         mock_hass.states.get.return_value = MagicMock(

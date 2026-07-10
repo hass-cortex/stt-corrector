@@ -45,7 +45,10 @@ class WrappedEntityMissingRepairFlow(RepairsFlow):
         """Select the replacement wrapped entity and rewire the entry."""
         stt_options = _get_stt_entities(self.hass)
 
-        if user_input is not None:
+        # The repairs framework passes the ISSUE DATA dict (not None) on
+        # the first invocation, so "is not None" cannot distinguish
+        # form-shown from form-submitted — key presence can.
+        if user_input is not None and CONF_WRAPPED_ENTITY_ID in user_input:
             entity_id = user_input[CONF_WRAPPED_ENTITY_ID]
             state = self.hass.states.get(entity_id)
             friendly_name = (
