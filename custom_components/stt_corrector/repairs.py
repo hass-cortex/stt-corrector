@@ -3,9 +3,18 @@
 When a wrapped STT entity disappears (its integration was removed, or a
 backend renamed its models), the corrected entity keeps its identity but
 can no longer proxy audio. `stt.py` raises a fixable repair issue for
-that state; the fix flow below lets the user pick a replacement source
-in place — preserving the entry, the corrected entity's id, all
-correction options, and therefore every voice pipeline referencing it.
+that state, and the fix flow below offers the two ways out:
+
+- **replace** — rewire to another source in place, preserving the entry,
+  the corrected entity's id, all correction options, and therefore every
+  voice pipeline referencing it. Right when a backend was renamed or
+  reinstalled.
+- **remove** — delete the entry. Right when the source is gone for good,
+  e.g. the user uninstalled that STT model on purpose.
+
+Either outcome clears the issue: the repairs framework deletes it when a
+fix flow completes, and `async_remove_entry` covers the case where the
+entry is deleted from the integrations page instead.
 """
 
 from __future__ import annotations
@@ -33,13 +42,50 @@ def wrapped_entity_issue_id(entry_id: str) -> str:
 
 
 class WrappedEntityMissingRepairFlow(RepairsFlow):
-    """Fix flow: pick a new wrapped STT entity for a broken entry."""
+    """Fix flow: rewire a broken entry to a new source, or drop it."""
 
     def __init__(self, entry: ConfigEntry) -> None:
         """Initialize with the config entry whose source vanished."""
         self._entry = entry
 
+    def _placeholders(self) -> dict[str, str]:
+        """Describe the broken entry for every step's copy."""
+        return {
+            "title": self._entry.title,
+            "wrapped_entity_id": str(self._entry.data.get(CONF_WRAPPED_ENTITY_ID, "")),
+        }
+
     async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Offer both exits: a source vanishing has two distinct causes.
+
+        A renamed or reinstalled backend wants the entry rewired; a model
+        the user deliberately deleted wants the corrector gone with it.
+        Offering only the former forces a wrong pairing.
+        """
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["replace", "remove"],
+            description_placeholders=self._placeholders(),
+        )
+
+    async def async_step_remove(
+        self, user_input: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Confirm, then delete the config entry outright."""
+        if user_input is None:
+            return self.async_show_form(
+                step_id="remove",
+                data_schema=vol.Schema({}),
+                description_placeholders=self._placeholders(),
+            )
+        entry_id = self._entry.entry_id
+        await self.hass.config_entries.async_remove(entry_id)
+        _LOGGER.info("Removed %s via repair flow", entry_id)
+        return self.async_create_entry(title="", data={})
+
+    async def async_step_replace(
         self, user_input: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """Select the replacement wrapped entity and rewire the entry."""
@@ -78,14 +124,9 @@ class WrappedEntityMissingRepairFlow(RepairsFlow):
             }
         )
         return self.async_show_form(
-            step_id="init",
+            step_id="replace",
             data_schema=schema,
-            description_placeholders={
-                "title": self._entry.title,
-                "wrapped_entity_id": str(
-                    self._entry.data.get(CONF_WRAPPED_ENTITY_ID, "")
-                ),
-            },
+            description_placeholders=self._placeholders(),
         )
 
 

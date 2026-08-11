@@ -293,6 +293,14 @@ class _MockRepairsFlow:
             "description_placeholders": description_placeholders,
         }
 
+    def async_show_menu(self, *, step_id, menu_options, description_placeholders=None):
+        return {
+            "type": "menu",
+            "step_id": step_id,
+            "menu_options": menu_options,
+            "description_placeholders": description_placeholders,
+        }
+
     def async_create_entry(self, *, title, data):
         return {"type": "create_entry", "title": title, "data": data}
 
@@ -351,5 +359,9 @@ def mock_hass():
     hass.services.has_service = MagicMock(return_value=False)
     hass.services.async_register = MagicMock()
     hass.async_add_executor_job = AsyncMock(return_value=None)
+    # Awaitable in real HA, unlike the sync async_update_entry / async_schedule_reload.
+    hass.config_entries.async_remove = AsyncMock(
+        return_value={"require_restart": False}
+    )
     hass.data = {}
     return hass

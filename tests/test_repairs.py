@@ -41,33 +41,47 @@ def _registry_with(entity_ids):
 
 class TestWrappedEntityMissingRepairFlow:
     @pytest.mark.asyncio
-    async def test_shows_form(self, mock_hass):
+    async def test_offers_both_replace_and_remove(self, mock_hass):
+        """A deliberately uninstalled model must not force a wrong pairing."""
         _registry_with(["stt.new_source"])
         flow = WrappedEntityMissingRepairFlow(_entry())
         flow.hass = mock_hass
 
         result = await flow.async_step_init()
-        assert result["type"] == "form"
+        assert result["type"] == "menu"
         assert result["step_id"] == "init"
+        assert result["menu_options"] == ["replace", "remove"]
         assert (
             result["description_placeholders"]["wrapped_entity_id"] == "stt.gone_source"
         )
 
     @pytest.mark.asyncio
-    async def test_first_call_with_issue_data_shows_form(self, mock_hass):
+    async def test_first_call_with_issue_data_shows_menu(self, mock_hass):
         """The repairs framework passes the ISSUE DATA dict (not None) on
-        the first invocation — it must show the form, not KeyError
+        the first invocation — it must show the menu, not KeyError
         (regression: 500 on opening the fix flow)."""
         _registry_with(["stt.new_source"])
         flow = WrappedEntityMissingRepairFlow(_entry())
         flow.hass = mock_hass
 
         result = await flow.async_step_init({"entry_id": "test_entry"})
-        assert result["type"] == "form"
-        assert result["step_id"] == "init"
+        assert result["type"] == "menu"
 
     @pytest.mark.asyncio
-    async def test_submit_rewires_entry_and_reloads(self, mock_hass):
+    async def test_replace_shows_form(self, mock_hass):
+        _registry_with(["stt.new_source"])
+        flow = WrappedEntityMissingRepairFlow(_entry())
+        flow.hass = mock_hass
+
+        result = await flow.async_step_replace()
+        assert result["type"] == "form"
+        assert result["step_id"] == "replace"
+        assert (
+            result["description_placeholders"]["wrapped_entity_id"] == "stt.gone_source"
+        )
+
+    @pytest.mark.asyncio
+    async def test_replace_rewires_entry_and_reloads(self, mock_hass):
         _registry_with(["stt.new_source"])
         mock_hass.states.get.return_value = MagicMock(
             attributes={"friendly_name": "New Source"}
@@ -76,7 +90,7 @@ class TestWrappedEntityMissingRepairFlow:
         flow = WrappedEntityMissingRepairFlow(entry)
         flow.hass = mock_hass
 
-        result = await flow.async_step_init({"wrapped_entity_id": "stt.new_source"})
+        result = await flow.async_step_replace({"wrapped_entity_id": "stt.new_source"})
         assert result["type"] == "create_entry"
         mock_hass.config_entries.async_update_entry.assert_called_once_with(
             entry,
@@ -87,6 +101,26 @@ class TestWrappedEntityMissingRepairFlow:
         mock_hass.config_entries.async_schedule_reload.assert_called_once_with(
             "entry-1"
         )
+
+    @pytest.mark.asyncio
+    async def test_remove_confirms_before_deleting(self, mock_hass):
+        flow = WrappedEntityMissingRepairFlow(_entry())
+        flow.hass = mock_hass
+
+        result = await flow.async_step_remove()
+        assert result["type"] == "form"
+        assert result["step_id"] == "remove"
+        mock_hass.config_entries.async_remove.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_remove_deletes_the_entry(self, mock_hass):
+        flow = WrappedEntityMissingRepairFlow(_entry())
+        flow.hass = mock_hass
+
+        result = await flow.async_step_remove({})
+        assert result["type"] == "create_entry"
+        mock_hass.config_entries.async_remove.assert_called_once_with("entry-1")
+        mock_hass.config_entries.async_update_entry.assert_not_called()
 
 
 class TestAsyncCreateFixFlow:
@@ -152,3 +186,19 @@ class TestIssueLifecycle:
 
         ir.async_create_issue.assert_not_called()
         ir.async_delete_issue.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_removing_the_entry_clears_its_issue(self, mock_hass):
+        """Deleting a broken entry from the integrations page must not
+        strand a fixable issue whose flow can no longer resolve it."""
+        import homeassistant.helpers.issue_registry as ir
+
+        from custom_components.stt_corrector import async_remove_entry
+
+        ir.async_delete_issue.reset_mock()
+        await async_remove_entry(mock_hass, _entry())
+
+        ir.async_delete_issue.assert_called_once()
+        assert ir.async_delete_issue.call_args.args[2] == wrapped_entity_issue_id(
+            "entry-1"
+        )

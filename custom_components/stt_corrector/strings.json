@@ -384,14 +384,26 @@
       "fix_flow": {
         "step": {
           "init": {
+            "title": "Missing STT source",
+            "description": "The wrapped speech-to-text entity `{wrapped_entity_id}` for **{title}** no longer exists. Rewire it to another source, or remove this corrector if you no longer need it.",
+            "menu_options": {
+              "replace": "Replace the source",
+              "remove": "Remove this corrector"
+            }
+          },
+          "replace": {
             "title": "Replace missing STT source",
-            "description": "The wrapped speech-to-text entity `{wrapped_entity_id}` for **{title}** no longer exists. Select a replacement — correction settings, the corrected entity ID, and voice pipelines are preserved.",
+            "description": "Select a replacement for `{wrapped_entity_id}` — correction settings, the corrected entity ID, and voice pipelines are preserved.",
             "data": {
               "wrapped_entity_id": "STT Entity"
             },
             "data_description": {
               "wrapped_entity_id": "Select the new speech-to-text entity to wrap with correction."
             }
+          },
+          "remove": {
+            "title": "Remove this corrector",
+            "description": "**{title}** will be deleted, along with its corrected entity and correction settings. Any voice pipeline still pointing at it will need a new speech-to-text entity."
           }
         }
       }

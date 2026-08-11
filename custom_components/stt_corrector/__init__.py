@@ -93,3 +93,19 @@ async def async_unload_entry(
 ) -> bool:
     """Unload an STT Corrector config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def async_remove_entry(
+    hass: HomeAssistant, entry: STTCorrectorConfigEntry
+) -> None:
+    """Clear the entry's repair issue on removal.
+
+    Only `stt.py` clears it otherwise, and only when the wrapped entity is
+    found — so deleting a broken entry from the integrations page would
+    strand a fixable issue whose fix flow can no longer resolve the entry.
+    """
+    from homeassistant.helpers import issue_registry as ir
+
+    from .repairs import wrapped_entity_issue_id
+
+    ir.async_delete_issue(hass, DOMAIN, wrapped_entity_issue_id(entry.entry_id))
