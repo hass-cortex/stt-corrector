@@ -112,7 +112,7 @@ class TestCorrectedSTTEntityProxy:
         assert result.result == "error"
 
     @pytest.mark.asyncio
-    async def test_buffers_and_replays_audio(self, mock_hass):
+    async def test_forwards_every_chunk_in_order(self, mock_hass):
         entry = _make_config_entry()
         wrapped = _make_wrapped_entity(text="ok")
         entity = CorrectedSTTEntity(mock_hass, entry)
@@ -144,6 +144,57 @@ class TestCorrectedSTTEntityProxy:
             await entity.async_process_audio_stream(metadata, _audio_stream(chunks))
 
         assert captured_chunks == chunks
+
+    @pytest.mark.asyncio
+    async def test_relays_audio_lazily(self, mock_hass):
+        """The wrapped entity must see chunks as they are produced.
+
+        Draining the source first would hand a streaming-capable engine a
+        burst with no live speech to overlap its chunked inference against.
+        """
+        entry = _make_config_entry()
+        wrapped = _make_wrapped_entity(text="ok")
+        entity = CorrectedSTTEntity(mock_hass, entry)
+
+        events: list[str] = []
+
+        async def source():
+            for i in range(3):
+                events.append(f"produce{i}")
+                yield f"chunk{i}".encode()
+
+        async def consume(metadata, stream):
+            async for chunk in stream:
+                events.append(f"consume{chunk.decode()[-1]}")
+            result = MagicMock()
+            result.result = "success"
+            result.text = "ok"
+            return result
+
+        wrapped.async_process_audio_stream = consume
+
+        entity._corrector = MagicMock()
+        entity._corrector.correct.return_value = MagicMock(
+            corrected="ok", original="ok", changes=[], candidates=[]
+        )
+
+        with (
+            patch.object(entity, "_get_wrapped_entity", return_value=wrapped),
+            patch.object(entity, "_phrase_builder") as mock_pb,
+        ):
+            mock_pb.build = AsyncMock(return_value=[])
+            metadata = MagicMock(language="en-US")
+            await entity.async_process_audio_stream(metadata, source())
+
+        # Interleaved, not "produce every chunk, then consume every chunk".
+        assert events == [
+            "produce0",
+            "consume0",
+            "produce1",
+            "consume1",
+            "produce2",
+            "consume2",
+        ]
 
     @pytest.mark.asyncio
     async def test_pushes_stats_to_sensors(self, mock_hass):

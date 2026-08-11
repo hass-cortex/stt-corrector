@@ -52,7 +52,8 @@ custom_components/stt_corrector/
 
 ### Key Design Patterns
 
-- **Proxy STT entity**: `CorrectedSTTEntity` buffers audio, forwards to wrapped entity via HA internal API, then corrects the result. Does not modify the wrapped entity. Supported languages/formats/codecs are proxied from the wrapped entity.
+- **Proxy STT entity**: `CorrectedSTTEntity` relays audio to the wrapped entity via HA internal API, then corrects the result. Does not modify the wrapped entity. Supported languages/formats/codecs are proxied from the wrapped entity.
+- **Lazy audio relay**: the relay generator forwards chunks as the pipeline produces them — it must never drain the stream first. Buffering would hand the wrapped entity a burst, so a streaming-capable engine pays for chunked inference with no live speech to overlap it against (measured: ~1.25s vs ~0.1s end-of-speech-to-text on a streaming Parakeet/Nemotron model). The fresh generator, not the buffering, is what hides the `PipelineRun` frame from downstream `capture.py` introspection. Guarded by `test_relays_audio_lazily`.
 - **Entity public API**: `last_recognition`, `async_test_correction()`, `async_get_phrases()` -- services use these instead of accessing private attributes.
 - **runtime_data**: Uses typed `STTCorrectorRuntimeData` dataclass (in `models.py`). Access entity via `runtime_data.entity`, sensors via `runtime_data.sensors`. Use `helpers.find_corrected_stt_entity()` to retrieve the STT entity.
 - **Sensor push updates**: STT entity calls `_notify_sensors()` after each proxy invocation. Sensors use `RestoreSensor` for state persistence across restarts.

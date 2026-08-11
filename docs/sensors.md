@@ -24,5 +24,5 @@ The integration provides 9 sensor entities grouped under a single device, tracki
 | Sensor | Enabled | Description |
 |--------|---------|-------------|
 | **Last language** | No | BCP-47 locale used in the most recent request |
-| **Processing time** | No | Wrapped STT API call + correction pipeline time in milliseconds (excludes audio buffering) |
+| **Processing time** | No | Wrapped STT API call + correction pipeline time in milliseconds, measured from the end of speech (excludes the time the user spent talking) |
 | **Last capture device** | Yes | Assist satellite / voice device that recorded the most recent request's audio (identified from the pipeline run; empty when not determinable) |

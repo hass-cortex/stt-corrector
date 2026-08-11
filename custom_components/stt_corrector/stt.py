@@ -266,7 +266,7 @@ class CorrectedSTTEntity(SpeechToTextEntity):
         # Identify the capture device BEFORE consuming the stream (the
         # original PipelineRun generator's frame is gone once exhausted),
         # and relay it to the wrapped entity via the shared ContextVar —
-        # the replay generator below hides the run from downstream
+        # the relay generator below hides the run from downstream
         # introspection. Reset in `finally` so no value leaks past this
         # invocation.
         capture_device = capture_device_from_stream(self._hass, stream)
@@ -292,15 +292,20 @@ class CorrectedSTTEntity(SpeechToTextEntity):
             )
             return SpeechResult(text=None, result=SpeechResultState.ERROR)
 
-        audio_chunks: list[bytes] = []
-        async for chunk in stream:
-            audio_chunks.append(chunk)
+        # Relay lazily. Draining the stream here would hand the wrapped entity
+        # a burst instead of live audio, so a streaming-capable engine pays for
+        # chunked inference with no speech to overlap it against. The fresh
+        # generator still hides the PipelineRun frame from downstream
+        # introspection (capture.py) — that comes from the new frame, not from
+        # buffering.
+        started_at = time.monotonic()
+        audio_ended_at: float | None = None
 
-        t0 = time.monotonic()
-
-        async def replay() -> AsyncIterable[bytes]:
-            for chunk in audio_chunks:
+        async def relay() -> AsyncIterable[bytes]:
+            nonlocal audio_ended_at
+            async for chunk in stream:
                 yield chunk
+            audio_ended_at = time.monotonic()
 
         # Remap language if locale has an stt_language mapping
         mapped_lang = self._get_mapped_stt_language(
@@ -318,7 +323,7 @@ class CorrectedSTTEntity(SpeechToTextEntity):
         else:
             forwarded_metadata = metadata
 
-        result = await wrapped.async_process_audio_stream(forwarded_metadata, replay())
+        result = await wrapped.async_process_audio_stream(forwarded_metadata, relay())
 
         if result.result == SpeechResultState.SUCCESS and result.text:
             if self._corrector_locale != metadata.language:
@@ -340,7 +345,10 @@ class CorrectedSTTEntity(SpeechToTextEntity):
                 if _LOGGER.isEnabledFor(logging.DEBUG)
                 else self._corrector.correct(result.text)
             )
-            elapsed_ms = (time.monotonic() - t0) * 1000
+            # Measured from end-of-speech, as before the relay went lazy; falls
+            # back to invocation start if the wrapped entity stopped early.
+            since = audio_ended_at if audio_ended_at is not None else started_at
+            elapsed_ms = (time.monotonic() - since) * 1000
             self._log_correction_result(correction, cfg)
 
             corrected_text = correction.corrected
