@@ -14,7 +14,7 @@ Home Assistant custom integration that wraps any STT entity with a three-process
 - **Linting**: ruff (lint + format)
 - **Type checking**: pyright (standard mode; `reportMissingImports = "none"` -- `homeassistant` is not installed)
 - **Version management**: commitizen (`cz bump`)
-- **CI**: GitHub Actions (lint, test, mypy, hassfest, lock-check)
+- **CI**: GitHub Actions (ruff, pyright, pytest, lock check; hassfest + HACS in validate.yml)
 
 ## Architecture
 
@@ -36,11 +36,12 @@ custom_components/stt_corrector/
 │   ├── corrector.py       # SpeechCorrector -- orchestrates three-processor pipeline
 │   ├── fuzzy_matcher.py   # FuzzyMatcher -- sliding window + similarity scoring
 │   ├── matchers.py        # PhoneticMatcher ABC + DefaultMatcher (SequenceMatcher fallback)
-│   ├── registry.py        # MatcherRegistry -- delegates to LanguageModuleRegistry
 │   ├── types.py           # CorrectionMethod, CorrectionChange, CorrectionResult, DiagnosticResult
 │   ├── processors/        # Language processors
 │   │   ├── base.py          # LanguageProcessor ABC
-│   │   └── punctuation.py   # TrailingPunctuationStripper
+│   │   ├── punctuation.py   # TrailingPunctuationStripper
+│   │   ├── replacement.py   # Custom Replacements processor
+│   │   └── similarity.py    # Similarity Matching processor
 │   └── languages/
 │       ├── __init__.py      # LanguageModule ABC + normalize_locale()
 │       ├── registry.py      # LanguageModuleRegistry
@@ -56,7 +57,7 @@ custom_components/stt_corrector/
 - **Lazy audio relay**: the relay generator forwards chunks as the pipeline produces them — it must never drain the stream first. Buffering would hand the wrapped entity a burst, so a streaming-capable engine pays for chunked inference with no live speech to overlap it against (measured: ~1.25s vs ~0.1s end-of-speech-to-text on a streaming Parakeet/Nemotron model). The fresh generator, not the buffering, is what hides the `PipelineRun` frame from downstream `capture.py` introspection. Guarded by `test_relays_audio_lazily`.
 - **Entity public API**: `last_recognition`, `async_test_correction()`, `async_get_phrases()` -- services use these instead of accessing private attributes.
 - **runtime_data**: Uses typed `STTCorrectorRuntimeData` dataclass (in `models.py`). Access entity via `runtime_data.entity`, sensors via `runtime_data.sensors`. Use `helpers.find_corrected_stt_entity()` to retrieve the STT entity.
-- **Sensor push updates**: STT entity calls `_notify_sensors()` after each proxy invocation. Sensors use `RestoreSensor` for state persistence across restarts.
+- **Sensor push updates**: STT entity calls `_push_stats()` after each proxy invocation. Sensors use `RestoreSensor` for state persistence across restarts.
 - **Wrapped entity resolution**: Tracked by entity registry ID (not entity_id string) to survive entity_id renames.
 - **Wrapped-entity lifecycle**: `async_step_reconfigure` swaps the source in place (entry_id, corrected entity unique_id/entity_id, and options all preserved, so voice pipelines keep working). If the wrapped entity disappears, `stt.py` raises a fixable repair issue (checked on add-to-hass and live via entity-registry events); the fix flow in `repairs.py` re-selects a source and self-clears.
 - **Config reuse**: `copy_correction_config` service copies the full options wholesale from one corrector to others; the setup dialog offers a "Copy settings from" template selector for new entries.
@@ -64,13 +65,13 @@ custom_components/stt_corrector/
 - **LanguageModule framework**: Each language is a self-contained module (`correction/languages/`) providing processors (Language Processing), matchers (Similarity Matching), config schema, select options for dropdown settings, and per-locale defaults. Add new languages by subclassing `LanguageModule` and registering in `LanguageModuleRegistry`.
 - **Corrector lifecycle**: `SpeechCorrector` is rebuilt when the audio locale changes. Phrases are updated on the existing corrector before each correction.
 - **Locale normalization**: Always use `normalize_locale()` from `correction.languages` when comparing or looking up locale codes. HA Voice Pipeline and different STT engines send locales in inconsistent formats (`zh-TW`, `zh_tw`, `zh_TW`, `zh-tw`). The normalizer lowercases and converts underscores to hyphens (`zh-tw`). All config keys use this normalized format.
-- **PhoneticMatcher**: Abstract base with `supports()`, `similarity()`, `windows()`. Now provided by `LanguageModule.get_matcher()` rather than direct registry lookup.
+- **PhoneticMatcher**: Abstract base with `supports()`, `similarity()`, `windows()`; each `LanguageModule.get_matcher()` supplies one.
 - **PhraseBuilder**: Event-driven cache invalidation via entity/area/device/floor registry event subscriptions. Auto-collect sources (floors, areas, devices, exposed entities) are independently configurable via `CONF_AUTO_COLLECT_SOURCES`.
 
 ## Development Commands
 
 ```bash
-uv sync                                    # Install all deps
+uv sync --group dev --group test           # Install all deps
 uv run pytest tests/ -v                    # Run tests
 uv run pytest tests/ --cov=custom_components --cov-report=term-missing  # Coverage
 uv run ruff check .                        # Lint
@@ -92,7 +93,7 @@ uv run cz bump                             # Version bump (auto from commits)
 - **Release notes**: Auto-generated by GitHub when `release.yml` creates a release. No `CHANGELOG.md` maintained.
 - **Releasing**: `cz bump` locally (updates `pyproject.toml` + `manifest.json`, creates commit + tag), sync `uv.lock`, push with `--follow-tags`. GitHub Actions creates the release automatically. See [Release Workflow](#release-workflow) for full steps.
 - **Docstrings**: Google-style with Args/Returns/Raises sections.
-- **Type annotations**: Required on all public functions (`disallow_untyped_defs = true`). Use `TYPE_CHECKING` guard for HA imports.
+- **Type annotations**: Required on all public functions. Use `TYPE_CHECKING` guard for HA imports.
 - **Translations**: `strings.json` is source of truth. `translations/en.json` must be kept in sync (currently byte-identical).
 
 ## Known Issues
@@ -105,7 +106,7 @@ This integration targets HA Integration Quality Scale compliance:
 
 - **Bronze**: Fully compliant (config-flow, runtime-data, unique-config-entry, test-before-setup, has-entity-name, entity-unique-id, entity-event-setup, docs)
 - **Silver**: Fully compliant (config-entry-unloading, parallel-updates, entity-unavailable, action-exceptions, test-coverage)
-- **Gold/Platinum**: Partial -- see implementation spec for gaps
+- **Gold/Platinum**: Partial -- per-rule status in `custom_components/stt_corrector/quality_scale.yaml`
 
 ## Release & Distribution
 
@@ -143,7 +144,7 @@ git push origin main --follow-tags
 
 ## Adding a New Language Module
 
-To add language-specific processing for a new language, two files need changes:
+To add language-specific processing for a new language, three places need changes:
 
 ### Step 1: Create the language module (`correction/languages/<language>.py`)
 
@@ -196,10 +197,10 @@ class <Language>Module(LanguageModule):
 Add one entry to `LanguageModuleRegistry._modules`:
 
 ```python
-from .languages.<language> import <Language>Module
+from .<language> import <Language>Module
 
 class LanguageModuleRegistry:
-    _modules: list[LanguageModule] = [MandarinModule(), <Language>Module()]
+    _modules: tuple[LanguageModule, ...] = (MandarinModule(), <Language>Module())
 ```
 
 ### Step 3: Add config flow step + strings
@@ -215,7 +216,7 @@ class LanguageModuleRegistry:
 
 ## Locale Handling
 
-**CRITICAL:** Always use `normalize_locale()` from `correction.languages` when comparing or looking up locale codes.
+Use `normalize_locale()` from `correction.languages` when comparing or looking up locale codes.
 
 HA Voice Pipeline and STT engines send locales in inconsistent formats:
 - `zh-TW` (BCP-47 standard, hyphen, mixed case)
@@ -225,7 +226,7 @@ HA Voice Pipeline and STT engines send locales in inconsistent formats:
 
 `normalize_locale()` converts all formats to lowercase with hyphen: `zh-tw`. All config keys and internal lookups use this normalized format.
 
-**DO NOT** use `.lower()` alone -- it doesn't handle underscore separators.
+`.lower()` alone is not enough -- it leaves underscore separators.
 
 ### STT Language Mapping (`stt_language`)
 
