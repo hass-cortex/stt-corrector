@@ -2,7 +2,7 @@
 
 [![GitHub Release](https://img.shields.io/github/v/release/hass-cortex/stt-corrector)](https://github.com/hass-cortex/stt-corrector/releases)
 [![HACS](https://img.shields.io/badge/HACS-Custom-blue.svg)](https://hacs.xyz/)
-[![HA Version](https://img.shields.io/badge/HA-2026.3.0+-green.svg)](https://www.home-assistant.io/)
+[![HA Version](https://img.shields.io/badge/HA-2026.10.0+-green.svg)](https://www.home-assistant.io/)
 [![GitHub License](https://img.shields.io/github/license/hass-cortex/stt-corrector)](https://github.com/hass-cortex/stt-corrector/blob/main/LICENSE)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/hass-cortex/stt-corrector)
 
@@ -44,7 +44,7 @@ Audio -----> Wrapped STT -----> Raw Text -----> Correction Pipeline -----> Final
 
 ## Getting Started
 
-**Prerequisites:** Home Assistant **2026.3.0+** and at least one STT entity already configured (e.g., Whisper, Azure Speech-to-Text, Google Cloud STT).
+**Prerequisites:** Home Assistant **2026.10.0+** and at least one STT entity already configured (e.g., Whisper, Azure Speech-to-Text, Google Cloud STT).
 
 ### 1. Install
 

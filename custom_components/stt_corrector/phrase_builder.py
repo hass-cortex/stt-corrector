@@ -111,7 +111,7 @@ class PhraseBuilder:
 
         if AUTO_COLLECT_DEVICES in self._enabled_sources:
             dev_reg = dr.async_get(self._hass)
-            for device in dev_reg.devices.values():
+            for device in dev_reg.devices:
                 if device.disabled_by is not None:
                     continue
                 name = device.name_by_user or device.name

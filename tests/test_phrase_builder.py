@@ -83,8 +83,7 @@ def _setup_registries(
 
     # Device registry
     dev_reg = MagicMock()
-    dev_reg.devices = MagicMock()
-    dev_reg.devices.values.return_value = devices
+    dev_reg.devices = devices
     dr.async_get.return_value = dev_reg
 
     # Floor registry
