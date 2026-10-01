@@ -16,6 +16,8 @@ class STTCorrectorRuntimeData:
 
     entity: Any = None
     sensors: list[Any] = field(default_factory=list)
+    # The wrapped entity this setup was built for; a change needs a reload.
+    wrapped_entity_id: str | None = None
 
 
 @dataclass(slots=True)

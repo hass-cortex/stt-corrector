@@ -108,7 +108,6 @@ class WrappedEntityMissingRepairFlow(RepairsFlow):
                 title=f"{friendly_name} Corrected",
                 unique_id=entity_id,
             )
-            self.hass.config_entries.async_schedule_reload(self._entry.entry_id)
             _LOGGER.info(
                 "Rewired %s to wrap %s via repair flow",
                 self._entry.entry_id,

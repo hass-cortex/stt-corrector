@@ -93,6 +93,7 @@ class TestAsyncSetupEntry:
         await async_setup_entry(mock_hass, entry)
 
         entry.add_update_listener.assert_called_once()
+        assert entry.runtime_data.wrapped_entity_id == "stt.azure_stt"
 
 
 class TestAsyncUnloadEntry:
@@ -126,8 +127,8 @@ class TestAsyncUnloadEntry:
         assert result is False
 
 
-class TestUpdateOptions:
-    """Test _async_update_options listener."""
+class TestUpdateEntry:
+    """Test the _async_update_entry listener."""
 
     @pytest.mark.asyncio
     async def test_update_options_rebuilds(self, mock_hass):
@@ -136,11 +137,13 @@ class TestUpdateOptions:
 
         mock_entity = MagicMock()
         mock_entity.rebuild_from_options = MagicMock()
-        entry.runtime_data = STTCorrectorRuntimeData(entity=mock_entity)
+        entry.runtime_data = STTCorrectorRuntimeData(
+            entity=mock_entity, wrapped_entity_id="stt.azure_stt"
+        )
 
-        from custom_components.stt_corrector import _async_update_options
+        from custom_components.stt_corrector import _async_update_entry
 
-        await _async_update_options(mock_hass, entry)
+        await _async_update_entry(mock_hass, entry)
 
         mock_entity.rebuild_from_options.assert_called_once()
 
@@ -148,12 +151,30 @@ class TestUpdateOptions:
     async def test_update_options_no_entity(self, mock_hass):
         """Options update with no entity should not raise."""
         entry = _make_config_entry()
-        entry.runtime_data = STTCorrectorRuntimeData()
+        entry.runtime_data = STTCorrectorRuntimeData(wrapped_entity_id="stt.azure_stt")
 
-        from custom_components.stt_corrector import _async_update_options
+        from custom_components.stt_corrector import _async_update_entry
 
         # Should not raise
-        await _async_update_options(mock_hass, entry)
+        await _async_update_entry(mock_hass, entry)
 
         # async_update_entry should NOT have been called
         mock_hass.config_entries.async_update_entry.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_wrapped_entity_change_reloads(self, mock_hass):
+        """A new wrapped entity reloads the entry instead of rebuilding."""
+        entry = _make_config_entry(data={"wrapped_entity_id": "stt.new_source"})
+        mock_entity = MagicMock()
+        entry.runtime_data = STTCorrectorRuntimeData(
+            entity=mock_entity, wrapped_entity_id="stt.azure_stt"
+        )
+
+        from custom_components.stt_corrector import _async_update_entry
+
+        await _async_update_entry(mock_hass, entry)
+
+        mock_hass.config_entries.async_schedule_reload.assert_called_once_with(
+            entry.entry_id
+        )
+        mock_entity.rebuild_from_options.assert_not_called()

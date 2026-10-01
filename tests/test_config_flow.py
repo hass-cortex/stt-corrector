@@ -417,7 +417,7 @@ class TestConfigFlowReconfigure:
         flow.hass = mock_hass
         flow._get_reconfigure_entry = MagicMock(return_value=entry)
         flow._async_current_entries = MagicMock(return_value=[entry])
-        flow.async_update_reload_and_abort = MagicMock(
+        flow.async_update_and_abort = MagicMock(
             return_value={"type": "abort", "reason": "reconfigure_successful"}
         )
         return flow
@@ -462,7 +462,7 @@ class TestConfigFlowReconfigure:
             {"wrapped_entity_id": "stt.new_source"}
         )
         assert result["reason"] == "reconfigure_successful"
-        flow.async_update_reload_and_abort.assert_called_once_with(
+        flow.async_update_and_abort.assert_called_once_with(
             entry,
             unique_id="stt.new_source",
             title="New Source Corrected",
@@ -489,7 +489,7 @@ class TestConfigFlowReconfigure:
         )
         assert result["type"] == "abort"
         assert result["reason"] == "already_configured"
-        flow.async_update_reload_and_abort.assert_not_called()
+        flow.async_update_and_abort.assert_not_called()
 
 
 class TestConfigFlowTemplate:

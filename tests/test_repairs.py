@@ -81,7 +81,7 @@ class TestWrappedEntityMissingRepairFlow:
         )
 
     @pytest.mark.asyncio
-    async def test_replace_rewires_entry_and_reloads(self, mock_hass):
+    async def test_replace_rewires_entry_and_leaves_reload_to_listener(self, mock_hass):
         _registry_with(["stt.new_source"])
         mock_hass.states.get.return_value = MagicMock(
             attributes={"friendly_name": "New Source"}
@@ -98,9 +98,7 @@ class TestWrappedEntityMissingRepairFlow:
             title="New Source Corrected",
             unique_id="stt.new_source",
         )
-        mock_hass.config_entries.async_schedule_reload.assert_called_once_with(
-            "entry-1"
-        )
+        mock_hass.config_entries.async_schedule_reload.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_remove_confirms_before_deleting(self, mock_hass):

@@ -194,7 +194,7 @@ class STTCorrectorConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-ar
                 if state is not None
                 else entity_id
             )
-            return self.async_update_reload_and_abort(
+            return self.async_update_and_abort(
                 entry,
                 unique_id=entity_id,
                 title=f"{friendly_name} Corrected",

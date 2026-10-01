@@ -10,7 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 
-from .const import DOMAIN
+from .const import CONF_WRAPPED_ENTITY_ID, DOMAIN
 from .models import STTCorrectorRuntimeData
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
@@ -65,22 +65,34 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: STTCorrectorConfigEntry
 ) -> bool:
     """Set up STT Corrector from a config entry."""
-    entry.runtime_data = STTCorrectorRuntimeData()
+    entry.runtime_data = STTCorrectorRuntimeData(
+        wrapped_entity_id=entry.data.get(CONF_WRAPPED_ENTITY_ID)
+    )
 
     # Forward to STT and sensor platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Rebuild corrector when options change (e.g., via services)
-    entry.async_on_unload(entry.add_update_listener(_async_update_options))
+    # The single path for every entry update: options flow, services,
+    # reconfigure and the repair flow all land here.
+    entry.async_on_unload(entry.add_update_listener(_async_update_entry))
 
     return True
 
 
-async def _async_update_options(
+async def _async_update_entry(
     hass: HomeAssistant, entry: STTCorrectorConfigEntry
 ) -> None:
-    """Handle options update — rebuild corrector and phrase builder."""
+    """Apply an entry update: reload on a new wrapped entity, else rebuild.
+
+    The wrapped entity is wired in at setup (registry tracking, repair
+    issue), so swapping it needs a reload; option changes rebuild the
+    corrector in place.
+    """
     from .helpers import find_corrected_stt_entity
+
+    if entry.data.get(CONF_WRAPPED_ENTITY_ID) != entry.runtime_data.wrapped_entity_id:
+        hass.config_entries.async_schedule_reload(entry.entry_id)
+        return
 
     entity = find_corrected_stt_entity(hass, entry)
     if entity:
