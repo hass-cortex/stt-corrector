@@ -26,8 +26,7 @@
     },
     "abort": {
       "already_configured": "This STT entity is already configured.",
-      "no_stt_entities": "No compatible STT entities found. Please set up an STT integration first.",
-      "reconfigure_successful": "Re-configuration was successful."
+      "no_stt_entities": "No compatible STT entities found. Please set up an STT integration first."
     }
   },
   "options": {
