@@ -123,7 +123,7 @@ Version is tracked in three places, kept in sync by commitizen (`cz bump`):
 
 `hacs.json`:
 - `name` -- display name in HACS UI
-- `homeassistant` -- minimum HA version (currently `2026.3.0`, required for Python 3.14+)
+- `homeassistant` -- minimum HA version (currently `2026.10.0`, the first release whose `DeviceRegistry.devices` iterates entries)
 - `render_readme` -- show README in HACS detail page
 
 ### Release Workflow
