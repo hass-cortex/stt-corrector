@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-import voluptuous as vol
+import probatio
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import ServiceValidationError
@@ -35,68 +35,68 @@ MAX_REPLACEMENT_RULES = 100
 MAX_PHRASE_LIST_SIZE = 500
 
 # Service schemas — all require entity_id to target a specific instance
-SCHEMA_PHRASES = vol.Schema(
+SCHEMA_PHRASES = probatio.Schema(
     {
-        vol.Required("entity_id"): str,
-        vol.Required("phrases"): [str],
+        probatio.Required("entity_id"): str,
+        probatio.Required("phrases"): [str],
     }
 )
 
-SCHEMA_ADD_REPLACEMENTS = vol.Schema(
+SCHEMA_ADD_REPLACEMENTS = probatio.Schema(
     {
-        vol.Required("entity_id"): str,
-        vol.Required("replacements"): {str: str},
+        probatio.Required("entity_id"): str,
+        probatio.Required("replacements"): {str: str},
     }
 )
 
-SCHEMA_REMOVE_REPLACEMENTS = vol.Schema(
+SCHEMA_REMOVE_REPLACEMENTS = probatio.Schema(
     {
-        vol.Required("entity_id"): str,
-        vol.Required("keys"): [str],
+        probatio.Required("entity_id"): str,
+        probatio.Required("keys"): [str],
     }
 )
 
-SCHEMA_SET_CORRECTION_CONFIG = vol.Schema(
+SCHEMA_SET_CORRECTION_CONFIG = probatio.Schema(
     {
-        vol.Required("entity_id"): str,
-        vol.Optional("custom_phrases"): [str],
-        vol.Optional("custom_replacements"): {str: str},
-        vol.Optional("enable_language_processing"): bool,
-        vol.Optional("enable_custom_replacements"): bool,
-        vol.Optional("enable_fuzzy_matching"): bool,
-        vol.Optional("fuzzy_threshold"): vol.All(
-            vol.Coerce(float), vol.Range(min=0.5, max=1.0)
+        probatio.Required("entity_id"): str,
+        probatio.Optional("custom_phrases"): [str],
+        probatio.Optional("custom_replacements"): {str: str},
+        probatio.Optional("enable_language_processing"): bool,
+        probatio.Optional("enable_custom_replacements"): bool,
+        probatio.Optional("enable_fuzzy_matching"): bool,
+        probatio.Optional("fuzzy_threshold"): probatio.All(
+            probatio.Coerce(float), probatio.Range(min=0.5, max=1.0)
         ),
-        vol.Optional("custom_exclusions"): [str],
-        vol.Optional("auto_collect_sources"): [str],
-        vol.Optional("language_config"): {str: {str: dict}},
+        probatio.Optional("custom_exclusions"): [str],
+        probatio.Optional("auto_collect_sources"): [str],
+        probatio.Optional("language_config"): {str: {str: dict}},
     }
 )
 
-SCHEMA_GET_CORRECTION_CONFIG = vol.Schema(
+SCHEMA_GET_CORRECTION_CONFIG = probatio.Schema(
     {
-        vol.Required("entity_id"): str,
+        probatio.Required("entity_id"): str,
     }
 )
 
-SCHEMA_COPY_CORRECTION_CONFIG = vol.Schema(
+SCHEMA_COPY_CORRECTION_CONFIG = probatio.Schema(
     {
-        vol.Required("source_entity_id"): str,
-        vol.Required("target_entity_id"): vol.Any(str, [str]),
+        probatio.Required("source_entity_id"): str,
+        probatio.Required("target_entity_id"): probatio.Any(str, [str]),
     }
 )
 
-SCHEMA_EXCLUSIONS = vol.Schema(
+SCHEMA_EXCLUSIONS = probatio.Schema(
     {
-        vol.Required("entity_id"): str,
-        vol.Required("exclusions"): [str],
+        probatio.Required("entity_id"): str,
+        probatio.Required("exclusions"): [str],
     }
 )
 
-SCHEMA_TEST_CORRECTION = vol.Schema(
+SCHEMA_TEST_CORRECTION = probatio.Schema(
     {
-        vol.Required("entity_id"): str,
-        vol.Required("text"): str,
+        probatio.Required("entity_id"): str,
+        probatio.Required("text"): str,
     }
 )
 

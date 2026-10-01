@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import voluptuous as vol
+import probatio
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -145,7 +145,7 @@ class STTCorrectorConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-ar
             )
 
         fields: dict[Any, Any] = {
-            vol.Required(CONF_WRAPPED_ENTITY_ID): SelectSelector(
+            probatio.Required(CONF_WRAPPED_ENTITY_ID): SelectSelector(
                 SelectSelectorConfig(options=stt_options)
             ),
         }
@@ -156,13 +156,13 @@ class STTCorrectorConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-ar
         if template_options:
             # Explicit dropdown — the default renders as radio buttons
             # when there are five or fewer options.
-            fields[vol.Optional(CONF_COPY_FROM)] = SelectSelector(
+            fields[probatio.Optional(CONF_COPY_FROM)] = SelectSelector(
                 SelectSelectorConfig(
                     options=template_options,
                     mode=SelectSelectorMode.DROPDOWN,
                 )
             )
-        return self.async_show_form(step_id="user", data_schema=vol.Schema(fields))
+        return self.async_show_form(step_id="user", data_schema=probatio.Schema(fields))
 
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
@@ -201,9 +201,9 @@ class STTCorrectorConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-ar
                 data={CONF_WRAPPED_ENTITY_ID: entity_id},
             )
 
-        schema = vol.Schema(
+        schema = probatio.Schema(
             {
-                vol.Required(
+                probatio.Required(
                     CONF_WRAPPED_ENTITY_ID,
                     default=entry.data.get(CONF_WRAPPED_ENTITY_ID),
                 ): SelectSelector(SelectSelectorConfig(options=stt_options)),
@@ -265,9 +265,9 @@ class STTCorrectorOptionsFlow(OptionsFlow):
             CONF_ACTIVE_PROCESSORS, DEFAULT_ACTIVE_PROCESSORS
         )
 
-        schema = vol.Schema(
+        schema = probatio.Schema(
             {
-                vol.Required(
+                probatio.Required(
                     CONF_ACTIVE_PROCESSORS, default=DEFAULT_ACTIVE_PROCESSORS
                 ): SelectSelector(
                     SelectSelectorConfig(
@@ -346,7 +346,7 @@ class STTCorrectorOptionsFlow(OptionsFlow):
         schema_def = module.config_schema()
         defaults = module.default_config()
 
-        fields: dict[vol.Marker, Any] = {}
+        fields: dict[probatio.Marker, Any] = {}
         suggested: dict[str, Any] = {}
         select_opts = module.select_options()
 
@@ -364,7 +364,7 @@ class STTCorrectorOptionsFlow(OptionsFlow):
             locale_defaults = defaults.get(locale_lower, {})
 
             # Build inner section fields
-            section_fields: dict[vol.Marker, Any] = {}
+            section_fields: dict[probatio.Marker, Any] = {}
             section_suggested: dict[str, Any] = {}
 
             # stt_language dropdown (generic, first field in every locale)
@@ -372,7 +372,7 @@ class STTCorrectorOptionsFlow(OptionsFlow):
                 locale_lower, available_languages
             )
             current_stt_lang = locale_cfg.get(CONF_STT_LANGUAGE, stt_lang_default)
-            section_fields[vol.Optional(CONF_STT_LANGUAGE, default="")] = (
+            section_fields[probatio.Optional(CONF_STT_LANGUAGE, default="")] = (
                 SelectSelector(
                     SelectSelectorConfig(
                         options=stt_lang_options,
@@ -388,7 +388,7 @@ class STTCorrectorOptionsFlow(OptionsFlow):
                 section_suggested[setting] = current_val
 
                 if setting in select_opts:
-                    section_fields[vol.Optional(setting, default=default_val)] = (
+                    section_fields[probatio.Optional(setting, default=default_val)] = (
                         SelectSelector(
                             SelectSelectorConfig(
                                 options=[
@@ -400,9 +400,11 @@ class STTCorrectorOptionsFlow(OptionsFlow):
                         )
                     )
                 elif isinstance(default_val, bool):
-                    section_fields[vol.Required(setting, default=default_val)] = bool
+                    section_fields[probatio.Required(setting, default=default_val)] = (
+                        bool
+                    )
                 elif isinstance(default_val, str):
-                    section_fields[vol.Optional(setting, default=default_val)] = (
+                    section_fields[probatio.Optional(setting, default=default_val)] = (
                         TextSelector(TextSelectorConfig())
                     )
 
@@ -417,12 +419,12 @@ class STTCorrectorOptionsFlow(OptionsFlow):
             # Also check stt_language for collapse decision
             if locale_cfg.get(CONF_STT_LANGUAGE, stt_lang_default) != stt_lang_default:
                 has_changes = True
-            fields[vol.Optional(section_key)] = section(
-                vol.Schema(section_fields),
+            fields[probatio.Optional(section_key)] = section(
+                probatio.Schema(section_fields),
                 {"collapsed": not has_changes},
             )
 
-        schema = vol.Schema(fields)
+        schema = probatio.Schema(fields)
         return self.async_show_form(
             step_id=f"lang_{module_key}",
             data_schema=self.add_suggested_values_to_schema(schema, suggested),
@@ -449,9 +451,9 @@ class STTCorrectorOptionsFlow(OptionsFlow):
             )
 
         options = self._options
-        schema = vol.Schema(
+        schema = probatio.Schema(
             {
-                vol.Optional(
+                probatio.Optional(
                     CONF_AUTO_COLLECT_SOURCES, default=DEFAULT_AUTO_COLLECT_SOURCES
                 ): SelectSelector(
                     SelectSelectorConfig(
@@ -469,7 +471,7 @@ class STTCorrectorOptionsFlow(OptionsFlow):
                         multiple=True,
                     )
                 ),
-                vol.Optional(CONF_CUSTOM_PHRASES, default=[]): TextSelector(
+                probatio.Optional(CONF_CUSTOM_PHRASES, default=[]): TextSelector(
                     TextSelectorConfig(multiple=True)
                 ),
             }
@@ -510,9 +512,9 @@ class STTCorrectorOptionsFlow(OptionsFlow):
         current_replacements = options.get(CONF_CUSTOM_REPLACEMENTS, {})
         current_list = [f"{k}={v}" for k, v in current_replacements.items()]
 
-        schema = vol.Schema(
+        schema = probatio.Schema(
             {
-                vol.Optional(CONF_CUSTOM_REPLACEMENTS, default=[]): TextSelector(
+                probatio.Optional(CONF_CUSTOM_REPLACEMENTS, default=[]): TextSelector(
                     TextSelectorConfig(multiple=True)
                 ),
             }
@@ -547,12 +549,12 @@ class STTCorrectorOptionsFlow(OptionsFlow):
             )
 
         options = self._options
-        schema = vol.Schema(
+        schema = probatio.Schema(
             {
-                vol.Required(CONF_FUZZY_THRESHOLD): vol.All(
-                    vol.Coerce(float), vol.Range(min=0.5, max=1.0)
+                probatio.Required(CONF_FUZZY_THRESHOLD): probatio.All(
+                    probatio.Coerce(float), probatio.Range(min=0.5, max=1.0)
                 ),
-                vol.Optional(CONF_CUSTOM_EXCLUSIONS, default=[]): TextSelector(
+                probatio.Optional(CONF_CUSTOM_EXCLUSIONS, default=[]): TextSelector(
                     TextSelectorConfig(multiple=True)
                 ),
             }

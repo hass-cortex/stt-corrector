@@ -27,7 +27,7 @@ custom_components/stt_corrector/
 ├── repairs.py           # Fixable repair flow: pick a replacement when the wrapped entity is gone
 ├── correction_config.py # CorrectionConfig dataclass (no Azure-specific fields)
 ├── phrase_builder.py    # Collects names from HA registries (floors, areas, devices, exposed entities)
-├── services.py          # 10 HA services with vol.Schema validation
+├── services.py          # 10 HA services with probatio.Schema validation
 ├── capture.py           # Capture-device introspection (PipelineRun stream) + shared ContextVar relay to downstream STT
 ├── helpers.py           # find_corrected_stt_entity via runtime_data lookup
 ├── models.py            # STTCorrectorRuntimeData + CorrectionStats dataclasses

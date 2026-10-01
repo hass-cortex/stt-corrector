@@ -337,13 +337,6 @@ for mod_name, mod in [
 ]:
     sys.modules[mod_name] = mod
 
-# Also mock voluptuous since config_flow uses it
-try:
-    import voluptuous  # noqa: F401
-except ImportError:
-    _vol = MagicMock()
-    sys.modules["voluptuous"] = _vol
-
 import pytest  # noqa: E402
 
 

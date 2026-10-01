@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import probatio
 import pytest
-import voluptuous as vol
 
 from custom_components.stt_corrector.models import STTCorrectorRuntimeData
 
@@ -619,7 +619,7 @@ class TestRemoveExclusions:
 
 
 class TestSchemaValidation:
-    """Test voluptuous schema validation on service inputs."""
+    """Test probatio schema validation on service inputs."""
 
     def test_set_correction_config_fuzzy_threshold_out_of_range(self):
         """Fuzzy threshold outside 0.5-1.0 should be rejected."""
@@ -627,12 +627,12 @@ class TestSchemaValidation:
             SCHEMA_SET_CORRECTION_CONFIG,
         )
 
-        with pytest.raises(vol.MultipleInvalid):
+        with pytest.raises(probatio.MultipleInvalid):
             SCHEMA_SET_CORRECTION_CONFIG(
                 {"entity_id": ENTITY_ID, "fuzzy_threshold": 0.1}
             )
 
-        with pytest.raises(vol.MultipleInvalid):
+        with pytest.raises(probatio.MultipleInvalid):
             SCHEMA_SET_CORRECTION_CONFIG(
                 {"entity_id": ENTITY_ID, "fuzzy_threshold": 1.5}
             )
@@ -652,7 +652,7 @@ class TestSchemaValidation:
         """Non-list phrases should be rejected."""
         from custom_components.stt_corrector.services import SCHEMA_PHRASES
 
-        with pytest.raises(vol.MultipleInvalid):
+        with pytest.raises(probatio.MultipleInvalid):
             SCHEMA_PHRASES({"entity_id": ENTITY_ID, "phrases": "not-a-list"})
 
     def test_add_replacements_schema_rejects_non_dict(self):
@@ -661,7 +661,7 @@ class TestSchemaValidation:
             SCHEMA_ADD_REPLACEMENTS,
         )
 
-        with pytest.raises(vol.MultipleInvalid):
+        with pytest.raises(probatio.MultipleInvalid):
             SCHEMA_ADD_REPLACEMENTS(
                 {"entity_id": ENTITY_ID, "replacements": "not-a-dict"}
             )
@@ -672,14 +672,14 @@ class TestSchemaValidation:
             SCHEMA_TEST_CORRECTION,
         )
 
-        with pytest.raises(vol.MultipleInvalid):
+        with pytest.raises(probatio.MultipleInvalid):
             SCHEMA_TEST_CORRECTION({"entity_id": ENTITY_ID})
 
     def test_exclusions_schema_rejects_non_list(self):
         """Non-list exclusions should be rejected."""
         from custom_components.stt_corrector.services import SCHEMA_EXCLUSIONS
 
-        with pytest.raises(vol.MultipleInvalid):
+        with pytest.raises(probatio.MultipleInvalid):
             SCHEMA_EXCLUSIONS({"entity_id": ENTITY_ID, "exclusions": "not-a-list"})
 
     def test_remove_replacements_schema_rejects_non_list(self):
@@ -688,7 +688,7 @@ class TestSchemaValidation:
             SCHEMA_REMOVE_REPLACEMENTS,
         )
 
-        with pytest.raises(vol.MultipleInvalid):
+        with pytest.raises(probatio.MultipleInvalid):
             SCHEMA_REMOVE_REPLACEMENTS({"entity_id": ENTITY_ID, "keys": "not-a-list"})
 
     def test_schemas_reject_missing_entity_id(self):
@@ -701,19 +701,19 @@ class TestSchemaValidation:
             SCHEMA_TEST_CORRECTION,
         )
 
-        with pytest.raises(vol.MultipleInvalid):
+        with pytest.raises(probatio.MultipleInvalid):
             SCHEMA_GET_CORRECTION_CONFIG({})
 
-        with pytest.raises(vol.MultipleInvalid):
+        with pytest.raises(probatio.MultipleInvalid):
             SCHEMA_PHRASES({"phrases": ["test"]})
 
-        with pytest.raises(vol.MultipleInvalid):
+        with pytest.raises(probatio.MultipleInvalid):
             SCHEMA_TEST_CORRECTION({"text": "hello"})
 
-        with pytest.raises(vol.MultipleInvalid):
+        with pytest.raises(probatio.MultipleInvalid):
             SCHEMA_SET_CORRECTION_CONFIG({"fuzzy_threshold": 0.75})
 
-        with pytest.raises(vol.MultipleInvalid):
+        with pytest.raises(probatio.MultipleInvalid):
             SCHEMA_EXCLUSIONS({"exclusions": ["test"]})
 
 

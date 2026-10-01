@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import voluptuous as vol
+import probatio
 from homeassistant.components.repairs import RepairsFlow
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -77,7 +77,7 @@ class WrappedEntityMissingRepairFlow(RepairsFlow):
         if user_input is None:
             return self.async_show_form(
                 step_id="remove",
-                data_schema=vol.Schema({}),
+                data_schema=probatio.Schema({}),
                 description_placeholders=self._placeholders(),
             )
         entry_id = self._entry.entry_id
@@ -115,9 +115,9 @@ class WrappedEntityMissingRepairFlow(RepairsFlow):
             )
             return self.async_create_entry(title="", data={})
 
-        schema = vol.Schema(
+        schema = probatio.Schema(
             {
-                vol.Required(CONF_WRAPPED_ENTITY_ID): SelectSelector(
+                probatio.Required(CONF_WRAPPED_ENTITY_ID): SelectSelector(
                     SelectSelectorConfig(options=stt_options)
                 ),
             }
