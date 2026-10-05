@@ -221,6 +221,15 @@
     },
     "copy_source_is_target": {
       "message": "source_entity_id and target_entity_id must be different correctors."
+    },
+    "mishearing_text_required": {
+      "message": "Both heard and meant text are required."
+    },
+    "mishearing_not_found": {
+      "message": "No STT Corrector recently heard this text. Pass an entity ID and a language."
+    },
+    "mishearing_language_required": {
+      "message": "A language is required: the corrector has not heard this text."
     }
   },
   "services": {
@@ -381,6 +390,32 @@
           "description": "List of segments to remove."
         }
       }
+    },
+    "report_mishearing": {
+      "name": "Report mishearing",
+      "description": "Learn a validated fix from a mishearing: STT heard one thing, the user meant another.",
+      "fields": {
+        "heard": {
+          "name": "Heard",
+          "description": "The text the voice pipeline produced."
+        },
+        "meant": {
+          "name": "Meant",
+          "description": "What the user actually said."
+        },
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "Corrector to fix. Defaults to the one that most recently heard the text."
+        },
+        "language": {
+          "name": "Language",
+          "description": "Locale to validate in. Defaults to the locale the text was heard in."
+        },
+        "dry_run": {
+          "name": "Dry run",
+          "description": "Plan and validate the fix without applying it."
+        }
+      }
     }
   },
   "issues": {
@@ -410,6 +445,21 @@
             "title": "Remove this corrector",
             "description": "**{title}** will be deleted, along with its corrected entity and correction settings. Any voice pipeline still pointing at it will need a new speech-to-text entity."
           }
+        }
+      }
+    },
+    "learned_rule": {
+      "title": "Approve correction rule {wrong} → {right} for {title}",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Approve learned rule",
+            "description": "STT heard **{heard}** where the user said **{meant}**. Add the rule **{wrong} → {right}** to **{title}** so this is corrected next time?\n\nA rule rewrites **{wrong}** in every sentence, so check that no other sentence uses it. Submit to add it; ignore this repair to reject it."
+          }
+        },
+        "abort": {
+          "learned_rule_invalid": "This rule no longer passes validation: {reason}",
+          "entity_not_loaded": "The corrector is not loaded. Try again after it starts."
         }
       }
     }

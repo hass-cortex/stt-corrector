@@ -6,6 +6,7 @@ can be imported without real dependencies.
 
 import sys
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import StrEnum
 from types import ModuleType
 from typing import Any
@@ -304,8 +305,45 @@ class _MockRepairsFlow:
     def async_create_entry(self, *, title, data):
         return {"type": "create_entry", "title": title, "data": data}
 
+    def async_abort(self, *, reason, description_placeholders=None):
+        return {
+            "type": "abort",
+            "reason": reason,
+            "description_placeholders": description_placeholders,
+        }
+
 
 _ha_components_repairs.RepairsFlow = _MockRepairsFlow
+
+
+class _MockStore:
+    """In-memory Store: saved data is shared by key, like the real one on disk."""
+
+    saved: dict[str, Any] = {}
+
+    def __init__(self, hass, version, key):
+        self.key = key
+
+    async def async_load(self):
+        return _MockStore.saved.get(self.key)
+
+    def async_delay_save(self, data_func, delay=0):
+        _MockStore.saved[self.key] = data_func()
+
+    async def async_remove(self):
+        _MockStore.saved.pop(self.key, None)
+
+
+_ha_helpers_storage = ModuleType("homeassistant.helpers.storage")
+_ha_helpers_storage.Store = _MockStore
+
+_ha_util = ModuleType("homeassistant.util")
+_ha_util_dt = ModuleType("homeassistant.util.dt")
+_ha_util_dt.utcnow = lambda: datetime.now(UTC)
+_ha_util.dt = _ha_util_dt
+
+_ha_components_pn = ModuleType("homeassistant.components.persistent_notification")
+_ha_components_pn.async_create = MagicMock()
 
 # Register all mocked modules
 for mod_name, mod in [
@@ -334,6 +372,10 @@ for mod_name, mod in [
     ("homeassistant.helpers.issue_registry", _ha_helpers_ir),
     ("homeassistant.helpers.event", _ha_helpers_event),
     ("homeassistant.components.repairs", _ha_components_repairs),
+    ("homeassistant.helpers.storage", _ha_helpers_storage),
+    ("homeassistant.util", _ha_util),
+    ("homeassistant.util.dt", _ha_util_dt),
+    ("homeassistant.components.persistent_notification", _ha_components_pn),
 ]:
     sys.modules[mod_name] = mod
 

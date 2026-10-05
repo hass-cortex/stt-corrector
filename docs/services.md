@@ -213,6 +213,51 @@ data:
 
 Tip: when creating a new corrector you can instead pick "Copy settings from" directly in the setup dialog.
 
+## Learning from Mishearings
+
+### `stt_corrector.report_mishearing`
+
+Report that the voice pipeline produced one text while the user said another, and let the corrector learn a fix. Meant for an LLM agent that noticed the mishearing (it asked "did you mean …?" and the user agreed), an automation, or you in Developer Tools.
+
+```yaml
+service: stt_corrector.report_mishearing
+data:
+  heard: "今天要到樂薩"
+  meant: "今天要倒垃圾"
+  dry_run: false          # optional: plan and validate only
+  entity_id: stt.sensevoice_small_corrected   # optional
+  language: "zh-TW"       # optional
+```
+
+How the fix is chosen:
+
+1. **Which corrector.** Each corrector keeps its last 100 recognitions (kept across restarts). The one that most recently heard `heard` -- as its corrected or raw text -- is fixed, using that recognition's raw STT text and locale. With `entity_id`, that corrector is used; if it has not heard the text, `language` is required and `heard` is taken as the raw text.
+2. **What differs.** The corrector's current output is compared with `meant`. Exactly one span may differ (`到樂薩` vs `倒垃圾`); report separate mishearings one at a time. If the output already equals `meant`, nothing changes.
+3. **Which fix.** Candidates are tried safest first: the meant span as a custom phrase, widened by one character of context (a longer phrase absorbs one mismatched syllable), then a replacement rule, widened by up to two characters.
+4. **Only names.** A candidate must be about a known name: part of one (`立扇`) or containing one (`倒垃圾` contains `垃圾`). The corrector serves the paths that act on exact text -- local intents and sentence triggers -- and those act on names; a one-off query word (`淡江大橋`) is not learned.
+5. **Validation.** A candidate is taken only if it turns the utterance into `meant` **and** leaves every recent recognition and every known phrase corrected exactly as today. Otherwise the next candidate is tried.
+
+What happens to a fix depends on its risk:
+
+- **A phrase is applied right away.** It only ever corrects toward a known name. It is written like `add_phrases` (same limits), shown as a persistent notification, and fired as a `stt_corrector_correction_learned` event.
+- **A rule waits for your approval.** A rule rewrites its text in every sentence, and only you can tell whether `力氣 → 立扇` would break "力氣很大". It is raised as a fixable issue in **Settings → Repairs** showing the rule and the utterance, and fired as a `stt_corrector_correction_proposed` event. **Submit** re-plans and adds the rule if it still validates (or a phrase, if one now does the job); **Ignore** rejects it, and the same rule is not proposed again.
+
+Both events carry `entity_id`, `heard`, `meant`, `type`, `wrong`, `right` -- an automation can turn them into phone notifications, with an undo action calling `remove_phrases` / `remove_replacements`.
+
+Response:
+```yaml
+status: applied        # applied | proposed | fix (dry run) | already_corrected | rejected
+entity_id: stt.sensevoice_small_corrected
+locale: zh-TW
+raw: "今天要到樂薩。"
+corrected: "今天要倒垃圾"
+fix:
+  type: phrase         # phrase | replacement
+  wrong: "到樂薩"
+  right: "倒垃圾"
+reason: ""             # for rejected: why each candidate failed
+```
+
 ## Migration Workflow
 
 Export from one instance, import to another:

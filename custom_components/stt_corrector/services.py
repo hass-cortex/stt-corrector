@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import TYPE_CHECKING, Any
 
 import probatio
+from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import ServiceValidationError
@@ -24,8 +26,10 @@ from .const import (
     DOMAIN,
 )
 from .correction_config import CorrectionConfig
+from .mishearing import FixPlan
 
 if TYPE_CHECKING:
+    from .recognition_log import Recognition
     from .stt import CorrectedSTTEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -93,6 +97,19 @@ SCHEMA_EXCLUSIONS = probatio.Schema(
     }
 )
 
+SCHEMA_REPORT_MISHEARING = probatio.Schema(
+    {
+        probatio.Required("heard"): str,
+        probatio.Required("meant"): str,
+        probatio.Optional("entity_id"): str,
+        probatio.Optional("language"): str,
+        probatio.Optional("dry_run", default=False): bool,
+    }
+)
+
+EVENT_CORRECTION_LEARNED = f"{DOMAIN}_correction_learned"
+EVENT_CORRECTION_PROPOSED = f"{DOMAIN}_correction_proposed"
+
 SCHEMA_TEST_CORRECTION = probatio.Schema(
     {
         probatio.Required("entity_id"): str,
@@ -100,6 +117,21 @@ SCHEMA_TEST_CORRECTION = probatio.Schema(
         probatio.Optional("language"): str,
     }
 )
+
+
+def _all_stt_entities(hass: HomeAssistant) -> list[CorrectedSTTEntity]:
+    """Every loaded STT Corrector entity."""
+    from .models import STTCorrectorRuntimeData
+
+    return [
+        runtime_data.entity
+        for cfg_entry in hass.config_entries.async_entries(DOMAIN)
+        if isinstance(
+            runtime_data := getattr(cfg_entry, "runtime_data", None),
+            STTCorrectorRuntimeData,
+        )
+        and runtime_data.entity is not None
+    ]
 
 
 def _find_stt_entity(hass: HomeAssistant, entity_id: str) -> CorrectedSTTEntity:
@@ -112,15 +144,9 @@ def _find_stt_entity(hass: HomeAssistant, entity_id: str) -> CorrectedSTTEntity:
     Raises:
         ServiceValidationError: If no matching entity is found.
     """
-    from .models import STTCorrectorRuntimeData
-
-    for cfg_entry in hass.config_entries.async_entries(DOMAIN):
-        runtime_data = getattr(cfg_entry, "runtime_data", None)
-        if (
-            isinstance(runtime_data, STTCorrectorRuntimeData)
-            and runtime_data.entity.entity_id == entity_id
-        ):
-            return runtime_data.entity
+    for entity in _all_stt_entities(hass):
+        if entity.entity_id == entity_id:
+            return entity
     raise ServiceValidationError(
         f"No {DOMAIN} STT entity found with entity_id '{entity_id}'.",
         translation_domain=DOMAIN,
@@ -205,10 +231,198 @@ async def async_handle_test_correction(
     }
 
 
+async def async_handle_report_mishearing(
+    hass: HomeAssistant, call: ServiceCall
+) -> dict[str, Any]:
+    """Learn a validated fix from "STT heard X, the user meant Y"."""
+    heard: str = call.data["heard"].strip()
+    meant: str = call.data["meant"].strip()
+    if not heard or not meant:
+        raise ServiceValidationError(
+            "heard and meant are required and cannot be empty",
+            translation_domain=DOMAIN,
+            translation_key="mishearing_text_required",
+        )
+
+    entity, recognition = _find_recognition(hass, heard, call.data.get("entity_id"))
+    locale = (
+        call.data.get("language")
+        or (recognition.locale if recognition else None)
+        or entity.correction_locale
+    )
+    if not locale:
+        raise ServiceValidationError(
+            "language is required: the corrector has not heard this utterance",
+            translation_domain=DOMAIN,
+            translation_key="mishearing_language_required",
+        )
+
+    raw = recognition.raw if recognition else heard
+    started = time.monotonic()
+    plan = await entity.async_plan_mishearing_fix(raw, meant, locale)
+    elapsed_ms = (time.monotonic() - started) * 1000
+    dry_run: bool = call.data.get("dry_run", False)
+    status = plan.status
+    if plan.fix is not None and not dry_run:
+        # A phrase only ever corrects toward a known name: learn it now. A
+        # rule rewrites its text in every sentence: the user approves it.
+        if plan.fix.kind == "phrase":
+            await async_apply_learned_fix(hass, entity.entity_id, heard, meant, plan)
+            status = "applied"
+        else:
+            _propose_rule(hass, entity, heard, meant, raw, locale, plan)
+            status = "proposed"
+    _LOGGER.info(
+        "Mishearing '%s' -> '%s' on %s: %s %s (planned in %.0f ms)",
+        heard,
+        meant,
+        entity.entity_id,
+        status,
+        plan.fix.describe() if plan.fix else plan.reason,
+        elapsed_ms,
+    )
+    return {
+        "status": status,
+        "entity_id": entity.entity_id,
+        "locale": locale,
+        "raw": raw,
+        "corrected": plan.corrected,
+        "fix": (
+            {"type": plan.fix.kind, "wrong": plan.fix.wrong, "right": plan.fix.right}
+            if plan.fix
+            else None
+        ),
+        "reason": plan.reason,
+    }
+
+
+def _find_recognition(
+    hass: HomeAssistant, heard: str, entity_id: str | None
+) -> tuple[CorrectedSTTEntity, Recognition | None]:
+    """The corrector that heard ``heard`` and that recognition.
+
+    With an entity_id the entity is fixed and the recognition optional;
+    without one, the newest recognition across all correctors decides.
+    """
+    if entity_id:
+        entity = _find_stt_entity(hass, entity_id)
+        return entity, entity.recognitions.find(heard)
+    matches = [
+        (recognition, entity)
+        for entity in _all_stt_entities(hass)
+        if (recognition := entity.recognitions.find(heard)) is not None
+    ]
+    if not matches:
+        raise ServiceValidationError(
+            f"No STT Corrector recently heard '{heard}'; pass entity_id and language.",
+            translation_domain=DOMAIN,
+            translation_key="mishearing_not_found",
+        )
+    recognition, entity = max(matches, key=lambda match: match[0].at)
+    return entity, recognition
+
+
+async def async_apply_learned_fix(
+    hass: HomeAssistant, entity_id: str, heard: str, meant: str, plan: FixPlan
+) -> None:
+    """Write a planned fix and tell the user, with how to undo it."""
+    fix = plan.fix
+    assert fix is not None
+    if fix.kind == "phrase":
+        await _add_custom_phrases(hass, entity_id, [fix.right])
+    else:
+        await _add_replacement_rules(hass, entity_id, {fix.wrong: fix.right})
+    undo = (
+        f"`{DOMAIN}.remove_phrases` with phrases: [{fix.right}]"
+        if fix.kind == "phrase"
+        else f"`{DOMAIN}.remove_replacements` with keys: [{fix.wrong}]"
+    )
+    persistent_notification.async_create(
+        hass,
+        f"Heard **{heard}**, meant **{meant}**: added {fix.describe()} to "
+        f"`{entity_id}`.\n\nUndo: {undo}.",
+        title="STT Corrector learned a correction",
+        notification_id=f"{DOMAIN}_learned_{entity_id}_{fix.kind}_{fix.right}",
+    )
+    hass.bus.async_fire(
+        EVENT_CORRECTION_LEARNED,
+        {
+            "entity_id": entity_id,
+            "heard": heard,
+            "meant": meant,
+            "type": fix.kind,
+            "wrong": fix.wrong,
+            "right": fix.right,
+        },
+    )
+
+
+def _propose_rule(
+    hass: HomeAssistant,
+    entity: CorrectedSTTEntity,
+    heard: str,
+    meant: str,
+    raw: str,
+    locale: str,
+    plan: FixPlan,
+) -> None:
+    """Raise a fixable repair asking the user to approve a learned rule."""
+    from homeassistant.helpers import issue_registry as ir
+
+    from .repairs import ISSUE_LEARNED_RULE, learned_rule_issue_id
+
+    fix = plan.fix
+    assert fix is not None
+    entry = entity.config_entry
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        learned_rule_issue_id(entry.entry_id, fix.wrong),
+        is_fixable=True,
+        is_persistent=True,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key=ISSUE_LEARNED_RULE,
+        translation_placeholders={
+            "title": entry.title,
+            "wrong": fix.wrong,
+            "right": fix.right,
+            "heard": heard,
+            "meant": meant,
+        },
+        data={
+            "entry_id": entry.entry_id,
+            "heard": heard,
+            "meant": meant,
+            "raw": raw,
+            "locale": locale,
+            "wrong": fix.wrong,
+            "right": fix.right,
+        },
+    )
+    hass.bus.async_fire(
+        EVENT_CORRECTION_PROPOSED,
+        {
+            "entity_id": entity.entity_id,
+            "heard": heard,
+            "meant": meant,
+            "type": fix.kind,
+            "wrong": fix.wrong,
+            "right": fix.right,
+        },
+    )
+
+
 async def async_handle_add_phrases(hass: HomeAssistant, call: ServiceCall) -> None:
     """Add phrases to the custom phrases list (deduplicated)."""
-    entity_id: str = call.data["entity_id"]
-    phrases_to_add: list[str] = call.data.get("phrases", [])
+    await _add_custom_phrases(
+        hass, call.data["entity_id"], call.data.get("phrases", [])
+    )
+
+
+async def _add_custom_phrases(
+    hass: HomeAssistant, entity_id: str, phrases_to_add: list[str]
+) -> None:
+    """Append phrases to an entity's custom phrases (deduplicated)."""
     if not phrases_to_add:
         return
 
@@ -251,8 +465,15 @@ async def async_handle_remove_phrases(hass: HomeAssistant, call: ServiceCall) ->
 
 async def async_handle_add_replacements(hass: HomeAssistant, call: ServiceCall) -> None:
     """Add or update replacement rules (merged into existing)."""
-    entity_id: str = call.data["entity_id"]
-    replacements: dict[str, str] = call.data.get("replacements", {})
+    await _add_replacement_rules(
+        hass, call.data["entity_id"], call.data.get("replacements", {})
+    )
+
+
+async def _add_replacement_rules(
+    hass: HomeAssistant, entity_id: str, replacements: dict[str, str]
+) -> None:
+    """Merge replacement rules into an entity's rules."""
     if not replacements:
         return
 
@@ -459,6 +680,9 @@ def async_register_services(hass: HomeAssistant) -> None:
     async def _test_correction(call: ServiceCall) -> dict[str, Any]:
         return await async_handle_test_correction(hass, call)
 
+    async def _report_mishearing(call: ServiceCall) -> dict[str, Any]:
+        return await async_handle_report_mishearing(hass, call)
+
     async def _add_exclusions(call: ServiceCall) -> None:
         await async_handle_add_exclusions(hass, call)
 
@@ -508,6 +732,13 @@ def async_register_services(hass: HomeAssistant) -> None:
         _test_correction,
         schema=SCHEMA_TEST_CORRECTION,
         supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "report_mishearing",
+        _report_mishearing,
+        schema=SCHEMA_REPORT_MISHEARING,
+        supports_response=SupportsResponse.OPTIONAL,
     )
     hass.services.async_register(
         DOMAIN, "add_exclusions", _add_exclusions, schema=SCHEMA_EXCLUSIONS

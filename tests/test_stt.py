@@ -312,6 +312,39 @@ class TestCorrectedSTTEntityProperties:
         assert entity._corrector is live
         assert entity.correction_locale is None
 
+    @pytest.mark.asyncio
+    async def test_records_recognitions_and_plans_fixes_against_them(self, mock_hass):
+        entry = _make_config_entry()
+        wrapped = _make_wrapped_entity(text="打開力戰", supported_languages=["zh"])
+        entity = CorrectedSTTEntity(mock_hass, entry)
+        mock_hass.async_add_executor_job = AsyncMock(
+            side_effect=lambda func, *args: func(*args)
+        )
+
+        with (
+            patch.object(entity, "_get_wrapped_entity", return_value=wrapped),
+            patch.object(entity, "_phrase_builder") as mock_pb,
+        ):
+            mock_pb.build = AsyncMock(return_value=["立扇"])
+            metadata = MagicMock(language="zh-TW")
+            metadata.format = "wav"
+            metadata.codec = "pcm"
+            metadata.bit_rate = 16
+            metadata.sample_rate = 16000
+            metadata.channel = 1
+            await entity.async_process_audio_stream(metadata, _audio_stream())
+            plan = await entity.async_plan_mishearing_fix(
+                "打開力戰", "打開立扇", "zh-TW"
+            )
+
+        assert entity.recognitions.find("打開力戰").locale == "zh-TW"
+        assert plan.status == "fix"
+        assert (plan.fix.kind, plan.fix.wrong, plan.fix.right) == (
+            "replacement",
+            "力戰",
+            "立扇",
+        )
+
 
 class TestCorrectedSTTEntityLifecycle:
     @pytest.mark.asyncio

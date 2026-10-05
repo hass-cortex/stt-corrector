@@ -45,7 +45,7 @@ class TestAsyncSetup:
         result = await async_setup(mock_hass, {})
 
         assert result is True
-        assert mock_hass.services.async_register.call_count == 10
+        assert mock_hass.services.async_register.call_count == 11
 
     def test_preload_runs_every_language_module(self, monkeypatch):
         """Setup preloads through the module hook, not language-specific code."""

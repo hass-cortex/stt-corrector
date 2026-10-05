@@ -36,7 +36,8 @@ Audio -----> Wrapped STT -----> Raw Text -----> Correction Pipeline -----> Final
 - **Auto-collected phrase vocabulary** -- independently toggle collection from exposed entities, devices, areas, and floors
 - **Language-aware matching** -- pinyin syllable comparison for Chinese, SequenceMatcher for other languages
 - **Runtime statistics** -- 9 sensor entities tracking usage and correction performance ([details](docs/sensors.md))
-- **Management services** -- 10 services for runtime configuration with entity targeting ([details](docs/services.md))
+- **Management services** -- 11 services for runtime configuration with entity targeting ([details](docs/services.md))
+- **Learns from mishearings** -- report "heard X, meant Y" (e.g. from an LLM agent) and the corrector learns a phrase, or proposes a rule for your approval in Repairs, validated against recent recognitions so nothing else changes ([details](docs/services.md#learning-from-mishearings))
 - **Config reuse** -- copy correction settings between correctors via service or the "Copy settings from" option at setup
 - **Self-healing source binding** -- swap the wrapped STT entity via Reconfigure; if it disappears, a fixable Repairs issue guides you to a replacement without touching pipelines
 - **Extensible language framework** -- add support for new languages by implementing a language module

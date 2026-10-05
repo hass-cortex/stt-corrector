@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import time
-from collections.abc import AsyncIterable
+from collections.abc import AsyncIterable, Callable
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.stt import (
@@ -37,8 +38,10 @@ from .correction import (
 from .correction.languages import normalize_locale
 from .correction.types import CorrectionChange
 from .correction_config import CorrectionConfig
+from .mishearing import Correct, Fix, FixPlan, plan_fix
 from .models import CorrectionStats, STTCorrectorRuntimeData
 from .phrase_builder import PhraseBuilder
+from .recognition_log import RecognitionLog
 
 if TYPE_CHECKING:
     from . import STTCorrectorConfigEntry
@@ -83,10 +86,16 @@ class CorrectedSTTEntity(SpeechToTextEntity):
         self._corrector_locale: str | None = None
         self._corrector = self._build_corrector(cfg=cfg)
         self._wrapped_registry_unsub: Any = None
+        self.recognitions = RecognitionLog(hass, config_entry.entry_id)
 
     @property
     def _options(self) -> dict[str, Any]:
         return self._config_entry.options
+
+    @property
+    def config_entry(self) -> STTCorrectorConfigEntry:
+        """The config entry this corrector belongs to."""
+        return self._config_entry
 
     @property
     def correction_locale(self) -> str | None:
@@ -204,6 +213,7 @@ class CorrectedSTTEntity(SpeechToTextEntity):
         runtime_data: STTCorrectorRuntimeData = self._config_entry.runtime_data
         runtime_data.entity = self
         self._phrase_builder.async_start_listening()
+        await self.recognitions.async_load()
 
         # Surface a fixable repair when the wrapped entity is gone, and
         # react live to it being removed/re-created in the registry.
@@ -358,6 +368,7 @@ class CorrectedSTTEntity(SpeechToTextEntity):
 
             corrected_text = correction.corrected
             correction_applied = bool(correction.changes)
+            self.recognitions.add(result.text, corrected_text, metadata.language)
 
             self._push_stats(
                 CorrectionStats(
@@ -407,6 +418,51 @@ class CorrectedSTTEntity(SpeechToTextEntity):
 
     async def async_get_phrases(self) -> list[str]:
         return await self._phrase_builder.build()
+
+    async def async_plan_mishearing_fix(
+        self, raw: str, meant: str, locale: str
+    ) -> FixPlan:
+        """Plan the safest config fix that corrects ``raw`` to ``meant``.
+
+        The fix must leave this corrector's recent recognitions and every
+        known phrase corrected exactly as the current config does.
+        """
+        cfg = CorrectionConfig.from_options(self._options)
+        phrases = await self._phrase_builder.build()
+        regression = [*self.recognitions.raw_texts(locale), *phrases]
+
+        def build(fix_cfg: CorrectionConfig, fix_phrases: list[str]) -> Correct:
+            corrector = self._build_corrector(locale=locale, cfg=fix_cfg)
+            corrector.update_phrases(fix_phrases)
+            return lambda text: corrector.correct(text).corrected
+
+        def with_rule(fix: Fix) -> CorrectionConfig:
+            return dataclasses.replace(
+                cfg,
+                custom_replacements={**cfg.custom_replacements, fix.wrong: fix.right},
+            )
+
+        def corrector_for(fix: Fix | None) -> Correct:
+            if fix is None:
+                return build(cfg, phrases)
+            if fix.kind == "phrase":
+                return build(cfg, [*phrases, fix.right])
+            return build(with_rule(fix), phrases)
+
+        def screen_for(fix: Fix) -> Callable[[str], bool]:
+            # Only the fix, against nothing: a phrase or rule that cannot
+            # change a text alone cannot change it beside the others.
+            bare = build(cfg, [])
+            alone = (
+                build(cfg, [fix.right])
+                if fix.kind == "phrase"
+                else build(with_rule(fix), [])
+            )
+            return lambda text: alone(text) != bare(text)
+
+        return await self._hass.async_add_executor_job(
+            plan_fix, raw, meant, corrector_for, screen_for, regression, phrases
+        )
 
     def rebuild_from_options(self) -> None:
         cfg = CorrectionConfig.from_options(self._options)

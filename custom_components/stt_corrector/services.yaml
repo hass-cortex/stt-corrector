@@ -215,3 +215,39 @@ copy_correction_config:
           integration: stt_corrector
           domain: stt
           multiple: true
+
+report_mishearing:
+  description: 'Learn a validated fix from a mishearing: STT heard one thing, the user meant another'
+  fields:
+    heard:
+      description: 'The text the voice pipeline produced'
+      required: true
+      example: '今天要到樂薩'
+      selector:
+        text:
+    meant:
+      description: 'What the user actually said'
+      required: true
+      example: '今天要倒垃圾'
+      selector:
+        text:
+    entity_id:
+      description: 'Corrector to fix; defaults to the one that most recently heard the text'
+      required: false
+      example: 'stt.sensevoice_small_corrected'
+      selector:
+        entity:
+          integration: stt_corrector
+          domain: stt
+    language:
+      description: 'Locale to validate in; defaults to the locale the text was heard in'
+      required: false
+      example: 'zh-TW'
+      selector:
+        text:
+    dry_run:
+      description: 'Plan and validate the fix without applying it'
+      required: false
+      default: false
+      selector:
+        boolean:

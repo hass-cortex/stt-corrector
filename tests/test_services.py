@@ -45,7 +45,7 @@ class TestRegisterServices:
     """Test service registration."""
 
     def test_register_services(self, mock_hass):
-        """async_register_services should register all 10 services."""
+        """async_register_services should register all 11 services."""
         from custom_components.stt_corrector.services import (
             async_register_services,
         )
@@ -66,6 +66,7 @@ class TestRegisterServices:
             "add_exclusions",
             "remove_exclusions",
             "copy_correction_config",
+            "report_mishearing",
         }
         assert registered == expected
 
@@ -974,3 +975,158 @@ class TestCopyCorrectionConfig:
         with pytest.raises(ServiceValidationError):
             await async_handle_copy_correction_config(mock_hass, call)
         mock_hass.config_entries.async_update_entry.assert_not_called()
+
+
+class TestReportMishearing:
+    """Test the report_mishearing service handler."""
+
+    @staticmethod
+    def _entry_with_recognition(entity_id: str, raw: str, corrected: str, plan):
+        from custom_components.stt_corrector.recognition_log import RecognitionLog
+
+        entry = _make_config_entry({"custom_phrases": ["垃圾"]})
+        entry.entry_id = f"entry_{entity_id}"
+        entity = entry.runtime_data.entity
+        entity.entity_id = entity_id
+        entity.correction_locale = None
+        entity.recognitions = RecognitionLog(MagicMock(), entry.entry_id)
+        entity.recognitions.add(raw, corrected, "zh-TW")
+        entity.async_plan_mishearing_fix = AsyncMock(return_value=plan)
+        return entry
+
+    @staticmethod
+    def _phrase_plan():
+        from custom_components.stt_corrector.mishearing import Fix, FixPlan
+
+        return FixPlan("fix", "今天要倒垃圾", Fix("phrase", "到樂薩", "倒垃圾"))
+
+    async def _call(self, mock_hass, data):
+        from custom_components.stt_corrector.services import (
+            async_handle_report_mishearing,
+        )
+
+        return await async_handle_report_mishearing(
+            mock_hass, _make_service_call({"dry_run": False, **data})
+        )
+
+    @pytest.mark.asyncio
+    async def test_applies_the_planned_phrase_and_announces_it(self, mock_hass):
+        from homeassistant.components import persistent_notification
+
+        entry = self._entry_with_recognition(
+            ENTITY_ID, "今天要到樂薩。", "今天要到樂薩", self._phrase_plan()
+        )
+        _mock_hass_with_entry(mock_hass, entry)
+        persistent_notification.async_create.reset_mock()
+
+        result = await self._call(
+            mock_hass, {"heard": "今天要到樂薩", "meant": "今天要倒垃圾"}
+        )
+
+        assert result["status"] == "applied"
+        assert result["entity_id"] == ENTITY_ID
+        assert result["fix"] == {"type": "phrase", "wrong": "到樂薩", "right": "倒垃圾"}
+        entry.runtime_data.entity.async_plan_mishearing_fix.assert_awaited_once_with(
+            "今天要到樂薩。", "今天要倒垃圾", "zh-TW"
+        )
+        options = mock_hass.config_entries.async_update_entry.call_args[1]["options"]
+        assert options["custom_phrases"] == ["垃圾", "倒垃圾"]
+        persistent_notification.async_create.assert_called_once()
+        event, payload = mock_hass.bus.async_fire.call_args[0]
+        assert event == "stt_corrector_correction_learned"
+        assert payload["right"] == "倒垃圾"
+
+    @pytest.mark.asyncio
+    async def test_dry_run_plans_without_applying(self, mock_hass):
+        entry = self._entry_with_recognition(
+            ENTITY_ID, "今天要到樂薩", "今天要到樂薩", self._phrase_plan()
+        )
+        _mock_hass_with_entry(mock_hass, entry)
+
+        result = await self._call(
+            mock_hass,
+            {"heard": "今天要到樂薩", "meant": "今天要倒垃圾", "dry_run": True},
+        )
+
+        assert result["status"] == "fix"
+        mock_hass.config_entries.async_update_entry.assert_not_called()
+        mock_hass.bus.async_fire.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_finds_the_corrector_that_heard_it(self, mock_hass):
+        from custom_components.stt_corrector.mishearing import FixPlan
+
+        other = self._entry_with_recognition(
+            "stt.other", "開燈", "開燈", FixPlan("already_corrected", "開燈")
+        )
+        heard_it = self._entry_with_recognition(
+            ENTITY_ID, "今天要到樂薩", "今天要到樂薩", self._phrase_plan()
+        )
+        _mock_hass_with_entry(mock_hass, heard_it)
+        mock_hass.config_entries.async_entries = MagicMock(
+            return_value=[other, heard_it]
+        )
+
+        result = await self._call(
+            mock_hass,
+            {"heard": "今天要到樂薩", "meant": "今天要倒垃圾", "dry_run": True},
+        )
+
+        assert result["entity_id"] == ENTITY_ID
+
+    @pytest.mark.asyncio
+    async def test_unknown_utterance_without_entity_raises(self, mock_hass):
+        from homeassistant.exceptions import ServiceValidationError
+
+        entry = self._entry_with_recognition(
+            ENTITY_ID, "開燈", "開燈", self._phrase_plan()
+        )
+        _mock_hass_with_entry(mock_hass, entry)
+
+        with pytest.raises(ServiceValidationError):
+            await self._call(
+                mock_hass, {"heard": "今天要到樂薩", "meant": "今天要倒垃圾"}
+            )
+
+    @pytest.mark.asyncio
+    async def test_unknown_utterance_with_entity_needs_a_language(self, mock_hass):
+        from homeassistant.exceptions import ServiceValidationError
+
+        entry = self._entry_with_recognition(
+            ENTITY_ID, "開燈", "開燈", self._phrase_plan()
+        )
+        _mock_hass_with_entry(mock_hass, entry)
+        data = {
+            "heard": "今天要到樂薩",
+            "meant": "今天要倒垃圾",
+            "entity_id": ENTITY_ID,
+        }
+
+        with pytest.raises(ServiceValidationError):
+            await self._call(mock_hass, data)
+
+        result = await self._call(mock_hass, {**data, "language": "zh-TW"})
+        assert result["raw"] == "今天要到樂薩"
+        assert result["locale"] == "zh-TW"
+
+    @pytest.mark.asyncio
+    async def test_a_rule_is_proposed_for_approval_not_applied(self, mock_hass):
+        import homeassistant.helpers.issue_registry as ir
+
+        from custom_components.stt_corrector.mishearing import Fix, FixPlan
+
+        plan = FixPlan("fix", "打開立扇", Fix("replacement", "力戰", "立扇"))
+        entry = self._entry_with_recognition(ENTITY_ID, "打開力戰", "打開力戰", plan)
+        entry.runtime_data.entity.config_entry = entry
+        _mock_hass_with_entry(mock_hass, entry)
+        ir.async_create_issue.reset_mock()
+
+        result = await self._call(mock_hass, {"heard": "打開力戰", "meant": "打開立扇"})
+
+        assert result["status"] == "proposed"
+        mock_hass.config_entries.async_update_entry.assert_not_called()
+        kwargs = ir.async_create_issue.call_args[1]
+        assert kwargs["is_fixable"] and kwargs["is_persistent"]
+        assert (kwargs["data"]["wrong"], kwargs["data"]["right"]) == ("力戰", "立扇")
+        event, _ = mock_hass.bus.async_fire.call_args[0]
+        assert event == "stt_corrector_correction_proposed"
