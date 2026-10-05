@@ -206,11 +206,3 @@ Development versions may contain breaking changes -- to revert, run the same act
 | [Chinese (Mandarin)](docs/languages/mandarin.md) | Chinese locales: settings, script conversion, pinyin matching, Taiwan readings |
 | [Sensors](docs/sensors.md) | Sensor entities for correction tracking and monitoring |
 | [Services](docs/services.md) | Management services with parameters and examples |
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, testing, and contribution guidelines.
-
-## License
-
-[MIT](LICENSE)
