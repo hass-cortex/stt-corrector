@@ -77,11 +77,9 @@ class LanguageModuleRegistry:
             for module in cls._modules:
                 config = language_config or {}
                 module_cfg = config.get(module.module_key(), module.default_config())
-                for loc in module.locales():
-                    matcher = module.get_matcher(loc, module_cfg)
-                    if matcher is not None:
-                        matchers.append(matcher)
-                        break
+                matcher = module.get_matcher(None, module_cfg)
+                if matcher is not None:
+                    matchers.append(matcher)
         else:
             locale_module = cls.get_module_for_locale(locale)
             if locale_module is not None:

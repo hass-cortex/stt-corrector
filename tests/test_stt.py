@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -265,6 +266,51 @@ class TestCorrectedSTTEntityProperties:
         with patch.object(entity, "_get_wrapped_entity", return_value=None):
             langs = entity.supported_languages
         assert langs == []
+
+    @pytest.mark.asyncio
+    async def test_correction_locale_follows_audio_and_is_logged(
+        self, mock_hass, caplog
+    ):
+        """None until the first audio; the rebuild logs locale and matchers."""
+        entry = _make_config_entry()
+        wrapped = _make_wrapped_entity(text="你好", supported_languages=["zh"])
+        entity = CorrectedSTTEntity(mock_hass, entry)
+        assert entity.correction_locale is None
+
+        with (
+            patch.object(entity, "_get_wrapped_entity", return_value=wrapped),
+            patch.object(entity, "_phrase_builder") as mock_pb,
+            caplog.at_level(logging.DEBUG, logger="custom_components.stt_corrector"),
+        ):
+            mock_pb.build = AsyncMock(return_value=[])
+            metadata = MagicMock(language="zh-TW")
+            metadata.format = "wav"
+            metadata.codec = "pcm"
+            metadata.bit_rate = 16
+            metadata.sample_rate = 16000
+            metadata.channel = 1
+            await entity.async_process_audio_stream(metadata, _audio_stream())
+
+        assert entity.correction_locale == "zh-TW"
+        assert "corrector for locale zh-TW" in caplog.text
+        assert "PinyinMatcher(taiwan_readings)" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_test_correction_language_corrects_as_that_locale(self, mock_hass):
+        """With language, a test matches live speech without changing the live corrector."""
+        entry = _make_config_entry()
+        entity = CorrectedSTTEntity(mock_hass, entry)
+        live = entity._corrector
+
+        with patch.object(entity, "_phrase_builder") as mock_pb:
+            mock_pb.build = AsyncMock(return_value=["垃圾"])
+            unknown = await entity.async_test_correction("今天要到樂瑟")
+            zh_tw = await entity.async_test_correction("今天要到樂瑟", "zh-TW")
+
+        assert unknown.corrected == "今天要到樂瑟"
+        assert zh_tw.corrected == "今天要到垃圾"
+        assert entity._corrector is live
+        assert entity.correction_locale is None
 
 
 class TestCorrectedSTTEntityLifecycle:

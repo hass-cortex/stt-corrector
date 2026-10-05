@@ -74,14 +74,16 @@
               "strip_trailing_punctuation": "Strip Trailing Punctuation",
               "trailing_punctuation": "Punctuation Characters",
               "script_conversion": "Script Conversion",
-              "pinyin_matching": "Pinyin Matching"
+              "pinyin_matching": "Pinyin Matching",
+              "taiwan_readings": "Taiwan Readings"
             },
             "data_description": {
               "stt_language": "Language to send to the underlying STT engine. Select a language to enable this locale in Voice Assistant.",
               "strip_trailing_punctuation": "Remove sentence-ending punctuation from STT output.",
               "trailing_punctuation": "Characters to strip from end of text.",
               "script_conversion": "Select the OpenCC conversion mode. Default: s2tw (Simplified → Traditional, Taiwan).",
-              "pinyin_matching": "Use pinyin similarity for fuzzy matching."
+              "pinyin_matching": "Use pinyin similarity for fuzzy matching.",
+              "taiwan_readings": "Also match words by their Taiwan pronunciation, e.g. 垃圾 as lè sè, so 樂瑟 corrects to 垃圾. Turn off if the STT engine already handles Taiwan readings."
             }
           },
           "zh_hk": {
@@ -233,6 +235,10 @@
         "text": {
           "name": "Text",
           "description": "Text to run through the correction pipeline."
+        },
+        "language": {
+          "name": "Language",
+          "description": "Locale to correct as (e.g. zh-TW). Defaults to the locale of the most recent audio."
         }
       }
     },

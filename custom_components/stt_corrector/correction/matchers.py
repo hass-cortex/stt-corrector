@@ -20,6 +20,9 @@ from difflib import SequenceMatcher
 class PhoneticMatcher(ABC):
     """Base class for language-specific phonetic matching."""
 
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}()"
+
     @abstractmethod
     def supports(self, text: str) -> bool:
         """Check if this matcher can handle the given text."""

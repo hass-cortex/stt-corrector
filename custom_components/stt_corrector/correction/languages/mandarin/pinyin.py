@@ -13,6 +13,7 @@ from itertools import zip_longest
 from pypinyin import Style, lazy_pinyin
 
 from ...matchers import PhoneticMatcher
+from .taiwan_readings import TaiwanReadings
 
 # Regex to split a TONE3 pinyin syllable into base + tone number
 _TONE_RE = re.compile(r"^(.+?)(\d)?$")
@@ -121,7 +122,9 @@ def _syllable_similarity(syl_a: str, syl_b: str) -> float:
     return 0.0
 
 
-def pinyin_similarity(text_a: str, text_b: str) -> float:
+def pinyin_similarity(
+    text_a: str, text_b: str, readings: TaiwanReadings | None = None
+) -> float:
     """Compare two Chinese strings by syllable-level pinyin similarity.
 
     Converts both strings to pinyin, then compares syllable by syllable
@@ -130,13 +133,31 @@ def pinyin_similarity(text_a: str, text_b: str) -> float:
     Args:
         text_a: First Chinese string.
         text_b: Second Chinese string.
+        readings: Taiwan readings; when given and either string contains a
+            listed word, the score is the better of the mainland and the
+            Taiwan reading.
 
     Returns:
         Similarity ratio between 0.0 and 1.0.
     """
     pinyin_a = lazy_pinyin(text_a, style=Style.TONE3)
     pinyin_b = lazy_pinyin(text_b, style=Style.TONE3)
+    score = _syllables_similarity(pinyin_a, pinyin_b)
 
+    if readings is not None:
+        taiwan_a = readings.pinyin(text_a)
+        taiwan_b = readings.pinyin(text_b)
+        if taiwan_a is not None or taiwan_b is not None:
+            score = max(
+                score,
+                _syllables_similarity(taiwan_a or pinyin_a, taiwan_b or pinyin_b),
+            )
+
+    return score
+
+
+def _syllables_similarity(pinyin_a: list[str], pinyin_b: list[str]) -> float:
+    """Average syllable similarity of two TONE3 syllable lists."""
     if not pinyin_a or not pinyin_b:
         return 0.0
 
@@ -166,11 +187,24 @@ class PinyinMatcher(PhoneticMatcher):
     provides a second guard for mixed-language text.
     """
 
+    def __init__(self, readings: TaiwanReadings | None = None) -> None:
+        """Initialize the matcher.
+
+        Args:
+            readings: Taiwan readings to score alongside pypinyin's, or None
+                for pypinyin's readings only.
+        """
+        self._readings = readings
+
+    def __repr__(self) -> str:
+        readings = "taiwan_readings" if self._readings is not None else ""
+        return f"PinyinMatcher({readings})"
+
     def supports(self, text: str) -> bool:
         return bool(_CJK_RE.search(text))
 
     def similarity(self, text_a: str, text_b: str) -> float:
-        return pinyin_similarity(text_a, text_b)
+        return pinyin_similarity(text_a, text_b, self._readings)
 
     def windows(self, text: str, phrase: str) -> list[tuple[int, int]]:
         phrase_len = len(phrase)

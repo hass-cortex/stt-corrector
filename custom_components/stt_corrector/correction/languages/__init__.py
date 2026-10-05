@@ -76,12 +76,14 @@ class LanguageModule(ABC):
 
     @abstractmethod
     def get_matcher(
-        self, locale: str, config: dict[str, dict[str, Any]]
+        self, locale: str | None, config: dict[str, dict[str, Any]]
     ) -> PhoneticMatcher | None:
         """Return a Similarity Matching phonetic matcher for the given locale, or None.
 
         Args:
-            locale: BCP-47 locale code (e.g. "zh-TW").
+            locale: BCP-47 locale code (e.g. "zh-TW"), or None while the
+                locale is unknown -- then return the matcher without any
+                locale-only behavior, if some locale enables it.
             config: Per-locale config dict from options.
         """
 

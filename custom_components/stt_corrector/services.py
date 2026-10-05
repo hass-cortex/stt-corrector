@@ -97,6 +97,7 @@ SCHEMA_TEST_CORRECTION = probatio.Schema(
     {
         probatio.Required("entity_id"): str,
         probatio.Required("text"): str,
+        probatio.Optional("language"): str,
     }
 )
 
@@ -175,8 +176,10 @@ async def async_handle_test_correction(
 
     entity = _find_stt_entity(hass, call.data["entity_id"])
 
-    result = await entity.async_test_correction(text)
+    language = call.data.get("language") or None
+    result = await entity.async_test_correction(text, language)
     return {
+        "locale": language or entity.correction_locale,
         "original": result.original,
         "corrected": result.corrected,
         "changes": [

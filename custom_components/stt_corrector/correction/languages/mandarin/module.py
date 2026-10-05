@@ -11,12 +11,14 @@ from ...processors.punctuation import TrailingPunctuationStripper
 from .. import LanguageModule, normalize_locale
 from .pinyin import PinyinMatcher
 from .script import OPENCC_MODES, ChineseScriptConverter, get_opencc
+from .taiwan_readings import get_taiwan_readings
 
 # Per-locale setting names
 SETTING_STRIP_TRAILING_PUNCTUATION = "strip_trailing_punctuation"
 SETTING_TRAILING_PUNCTUATION = "trailing_punctuation"
 SETTING_SCRIPT_CONVERSION = "script_conversion"
 SETTING_PINYIN_MATCHING = "pinyin_matching"
+SETTING_TAIWAN_READINGS = "taiwan_readings"
 
 _SETTINGS: list[str] = [
     SETTING_STRIP_TRAILING_PUNCTUATION,
@@ -24,6 +26,11 @@ _SETTINGS: list[str] = [
     SETTING_SCRIPT_CONVERSION,
     SETTING_PINYIN_MATCHING,
 ]
+
+# Settings only some locales offer, with their defaults
+_LOCALE_ONLY_SETTINGS: dict[str, dict[str, Any]] = {
+    "zh-tw": {SETTING_TAIWAN_READINGS: True},
+}
 
 # Default OpenCC mode per locale
 _DEFAULT_OPENCC_MODES: dict[str, str] = {
@@ -65,6 +72,7 @@ class MandarinModule(LanguageModule):
             locale: {
                 **_BASE_LOCALE_CONFIG,
                 SETTING_SCRIPT_CONVERSION: _DEFAULT_OPENCC_MODES.get(locale, ""),
+                **_LOCALE_ONLY_SETTINGS.get(locale, {}),
             }
             for locale in (normalize_locale(loc) for loc in _LOCALES)
         }
@@ -90,22 +98,38 @@ class MandarinModule(LanguageModule):
         return processors
 
     def get_matcher(
-        self, locale: str, config: dict[str, dict[str, Any]]
+        self, locale: str | None, config: dict[str, dict[str, Any]]
     ) -> PinyinMatcher | None:
+        if locale is None:
+            # Locale unknown: no zh-TW-only Taiwan readings
+            enabled = any(
+                config.get(normalize_locale(loc), {}).get(SETTING_PINYIN_MATCHING, True)
+                for loc in _LOCALES
+            )
+            return PinyinMatcher() if enabled else None
         normalized = normalize_locale(locale)
         locale_cfg = config.get(normalized, {})
         if not locale_cfg.get(SETTING_PINYIN_MATCHING, True):
             return None
+        locale_only = _LOCALE_ONLY_SETTINGS.get(normalized, {})
+        if SETTING_TAIWAN_READINGS in locale_only and locale_cfg.get(
+            SETTING_TAIWAN_READINGS, locale_only[SETTING_TAIWAN_READINGS]
+        ):
+            return PinyinMatcher(get_taiwan_readings())
         return PinyinMatcher()
 
     def config_schema(self) -> dict[str, list[str]]:
-        return {normalize_locale(loc): list(_SETTINGS) for loc in _LOCALES}
+        return {
+            locale: [*_SETTINGS, *_LOCALE_ONLY_SETTINGS.get(locale, {})]
+            for locale in (normalize_locale(loc) for loc in _LOCALES)
+        }
 
     def preload(self) -> None:
-        """Load pypinyin's dictionaries and OpenCC tables."""
+        """Load pypinyin's dictionaries, OpenCC tables and Taiwan readings."""
         lazy_pinyin("")  # pypinyin reads phrases_dict.json on first use
         for mode in OPENCC_MODES:
             get_opencc(mode)
+        get_taiwan_readings()
 
     def select_options(self) -> dict[str, list[dict[str, str]]]:
         return {

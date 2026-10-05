@@ -45,6 +45,7 @@ class TestMandarinModuleDefaultConfig:
         assert cfg["zh-tw"]["trailing_punctuation"] == "。"
         assert cfg["zh-tw"]["script_conversion"] == "s2tw"
         assert cfg["zh-tw"]["pinyin_matching"] is True
+        assert cfg["zh-tw"]["taiwan_readings"] is True
 
     def test_zh_hk_defaults(self) -> None:
         module = MandarinModule()
@@ -61,6 +62,16 @@ class TestMandarinModuleDefaultConfig:
         assert cfg["zh-cn"]["trailing_punctuation"] == "。"
         assert cfg["zh-cn"]["script_conversion"] == ""
         assert cfg["zh-cn"]["pinyin_matching"] is True
+
+    def test_taiwan_readings_offered_by_zh_tw_only(self) -> None:
+        """Only zh-TW gets the setting, so only its UI section shows it."""
+        module = MandarinModule()
+        schema = module.config_schema()
+        defaults = module.default_config()
+        assert "taiwan_readings" in schema["zh-tw"]
+        for locale in ("zh-hk", "zh-cn"):
+            assert "taiwan_readings" not in schema[locale]
+            assert "taiwan_readings" not in defaults[locale]
 
 
 class TestMandarinModuleGetProcessors:
@@ -175,6 +186,37 @@ class TestMandarinModuleGetMatcher:
         matcher = module.get_matcher("zh-TW", {})
         assert isinstance(matcher, PinyinMatcher)
 
+    def test_zh_tw_matcher_uses_taiwan_readings(self) -> None:
+        """zh-TW scores 垃圾 as Taiwan reads it (lè sè); zh-CN does not."""
+        module = MandarinModule()
+        zh_tw = module.get_matcher("zh-TW", {})
+        zh_cn = module.get_matcher("zh-CN", {})
+        assert zh_tw is not None and zh_cn is not None
+        assert zh_tw.similarity("樂瑟", "垃圾") == 1.0
+        assert zh_cn.similarity("樂瑟", "垃圾") < 0.5
+
+    def test_preload_loads_taiwan_readings(self) -> None:
+        from custom_components.stt_corrector.correction.languages.mandarin import (
+            taiwan_readings,
+        )
+
+        taiwan_readings._shared = None
+        MandarinModule().preload()
+        assert taiwan_readings._shared is not None
+
+    def test_taiwan_readings_toggle_off(self) -> None:
+        module = MandarinModule()
+        matcher = module.get_matcher("zh-TW", {"zh-tw": {"taiwan_readings": False}})
+        assert matcher is not None
+        assert matcher.similarity("樂瑟", "垃圾") < 0.5
+
+    def test_taiwan_readings_ignored_where_not_offered(self) -> None:
+        """A stray key on another locale does not turn the readings on."""
+        module = MandarinModule()
+        matcher = module.get_matcher("zh-CN", {"zh-cn": {"taiwan_readings": True}})
+        assert matcher is not None
+        assert matcher.similarity("樂瑟", "垃圾") < 0.5
+
 
 class TestLanguageModuleRegistry:
     """Tests for LanguageModuleRegistry."""
@@ -254,6 +296,18 @@ class TestLanguageModuleRegistryGetMatchers:
         assert len(matchers) == 2
         assert isinstance(matchers[0], PinyinMatcher)
         assert isinstance(matchers[1], DefaultMatcher)
+
+    def test_none_locale_skips_locale_only_behavior(self) -> None:
+        """Unknown locale must not borrow zh-TW's Taiwan readings."""
+        matchers = LanguageModuleRegistry.get_matchers(None)
+        assert matchers[0].similarity("樂瑟", "垃圾") < 0.5
+
+    def test_none_locale_no_matcher_when_every_locale_disables_it(self) -> None:
+        off = {"pinyin_matching": False}
+        config = {"mandarin": {"zh-tw": off, "zh-hk": off, "zh-cn": off}}
+        matchers = LanguageModuleRegistry.get_matchers(None, language_config=config)
+        assert len(matchers) == 1
+        assert isinstance(matchers[0], DefaultMatcher)
 
     def test_default_matcher_always_last(self) -> None:
         for locale in ["zh-CN", "en-US", None]:

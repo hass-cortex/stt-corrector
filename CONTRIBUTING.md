@@ -89,9 +89,9 @@ stt-corrector/
       languages/           # Language module framework
         __init__.py          # LanguageModule ABC + normalize_locale()
         registry.py          # LanguageModuleRegistry
-        mandarin/            # Chinese: module, pinyin matcher, OpenCC
+        mandarin/            # Chinese: module, pinyin matcher, Taiwan readings, OpenCC
   docs/languages/        # One page per language
-  scripts/<language>/    # Per-language generator scripts
+  scripts/<language>/    # Per-language generator scripts (e.g. Taiwan readings table)
   tests/                 # Test suite (per-language tests in tests/languages/<language>/)
   pyproject.toml         # Project metadata and tool config
 ```

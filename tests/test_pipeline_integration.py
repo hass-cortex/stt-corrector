@@ -201,6 +201,18 @@ class TestReplacementBeforeSimilarity:
         assert any(c.method == CorrectionMethod.CUSTOM_RULE for c in result.changes)
 
 
+class TestTaiwanReadingsPipeline:
+    """End-to-end zh-TW correction of a Taiwan-reading homophone."""
+
+    def test_taiwan_reading_homophone_corrected(self) -> None:
+        sc = _build_corrector_for_locale("zh-TW", known_phrases=["垃圾"])
+        assert sc.correct("今天要到樂瑟").corrected == "今天要到垃圾"
+
+    def test_zh_cn_keeps_mainland_readings(self) -> None:
+        sc = _build_corrector_for_locale("zh-CN", known_phrases=["垃圾"])
+        assert sc.correct("今天要到樂瑟").corrected == "今天要到樂瑟"
+
+
 class TestPhraseUpdates:
     """Tests for runtime phrase updates through the pipeline."""
 

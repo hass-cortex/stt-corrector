@@ -30,7 +30,7 @@ Audio -----> Wrapped STT -----> Raw Text -----> Correction Pipeline -----> Final
 
 - **Wraps any STT entity** -- works with Azure, Whisper, Google Cloud, or any other HA STT provider without modifying it
 - **Three-processor correction pipeline** -- Language Processing, Custom Replacements, and Similarity Matching, each independently toggleable
-- **Chinese language support** -- script conversion (simplified/traditional via OpenCC), trailing punctuation stripping, and pinyin-based phonetic matching ([details](docs/languages/mandarin.md))
+- **Chinese language support** -- script conversion (simplified/traditional via OpenCC), trailing punctuation stripping, pinyin-based phonetic matching, and Taiwan readings for zh-TW ([details](docs/languages/mandarin.md))
 - **Configurable per locale** -- each locale has its own settings in its language's section
 - **Locale-to-STT language mapping** -- advertise locale variants (e.g., zh-TW) in your voice pipeline even when the underlying STT only supports generic language codes (e.g., zh), with automatic prefix-based defaults
 - **Auto-collected phrase vocabulary** -- independently toggle collection from exposed entities, devices, areas, and floors
@@ -91,7 +91,7 @@ Main Menu
 | Menu Item | What you configure |
 |-----------|-------------------|
 | **Active Processors** | Enable or disable each processor: Language Processing, Custom Replacements, Similarity Matching. All three are enabled by default. |
-| **Language Settings** | Per-locale settings for supported languages. Currently Chinese (zh-TW, zh-HK, zh-CN; [settings](docs/languages/mandarin.md#settings)) with options for STT language mapping, script conversion mode (any OpenCC direction), punctuation stripping, and pinyin matching. Each locale has an **STT Language** dropdown that maps it to a language the underlying STT engine supports -- this enables the locale in your voice pipeline even if the STT engine doesn't natively support it. |
+| **Language Settings** | Per-locale settings for supported languages. Currently Chinese (zh-TW, zh-HK, zh-CN; [settings](docs/languages/mandarin.md#settings)) with options for STT language mapping, script conversion mode (any OpenCC direction), punctuation stripping, pinyin matching, and (zh-TW only) Taiwan readings. Each locale has an **STT Language** dropdown that maps it to a language the underlying STT engine supports -- this enables the locale in your voice pipeline even if the STT engine doesn't natively support it. |
 | **Phrase Collection** | Which HA sources to auto-collect phrases from (floors, areas, devices, exposed entities), plus any custom phrases you want to add. |
 | **Custom Replacements** | Exact text substitution rules in `wrong=correct` format. For consistently misrecognized words. |
 | **Similarity Matching** | Fuzzy matching threshold (0.5--1.0, default 0.8) and exclusion list for words that should never be corrected. |
@@ -150,7 +150,7 @@ Each setting is independently configurable per locale via the Language Settings 
 
 **What is pinyin matching?**
 
-For Chinese text, the integration converts characters to their romanized pronunciation (pinyin) and compares phonetic similarity at the syllable level. This catches cases where the STT engine recognizes a homophone instead of the intended word. Tone differences are tolerated with reduced confidence, and acoustically similar initials (e.g., l/r/n, zh/z, sh/s) receive partial credit. See [Chinese (Mandarin)](docs/languages/mandarin.md).
+For Chinese text, the integration converts characters to their romanized pronunciation (pinyin) and compares phonetic similarity at the syllable level. This catches cases where the STT engine recognizes a homophone instead of the intended word. Tone differences are tolerated with reduced confidence, and acoustically similar initials (e.g., l/r/n, zh/z, sh/s) receive partial credit. For zh-TW, words Taiwan reads differently from the mainland (e.g., `垃圾` as `lè sè`) are also compared by their Taiwan reading. See [Chinese (Mandarin)](docs/languages/mandarin.md).
 
 **Can I use this without auto-collected phrases?**
 
@@ -203,7 +203,7 @@ Development versions may contain breaking changes -- to revert, run the same act
 | Document | Description |
 |----------|-------------|
 | [Correction Pipeline](docs/correction-pipeline.md) | Three-processor correction pipeline with examples |
-| [Chinese (Mandarin)](docs/languages/mandarin.md) | Chinese locales: settings, script conversion, pinyin matching |
+| [Chinese (Mandarin)](docs/languages/mandarin.md) | Chinese locales: settings, script conversion, pinyin matching, Taiwan readings |
 | [Sensors](docs/sensors.md) | Sensor entities for correction tracking and monitoring |
 | [Services](docs/services.md) | Management services with parameters and examples |
 

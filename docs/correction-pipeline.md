@@ -75,7 +75,7 @@ The matching strategy depends on the language:
 
 | Language | Matching method | How it works |
 |----------|----------------|--------------|
-| [Chinese](languages/mandarin.md#similarity-matching-pinyin) (zh-TW, zh-HK, zh-CN) | Pinyin comparison | Converts characters to romanized pronunciation, compares syllable by syllable with tone awareness and similar-initial boosting |
+| [Chinese](languages/mandarin.md#similarity-matching-pinyin) (zh-TW, zh-HK, zh-CN) | Pinyin comparison | Converts characters to romanized pronunciation, compares syllable by syllable with tone awareness and similar-initial boosting; zh-TW also by [Taiwan readings](languages/mandarin.md#taiwan-readings-zh-tw) |
 | All other languages | SequenceMatcher | Standard fuzzy string comparison with word-boundary-aware sliding windows |
 
 **Known phrases** are built from two sources:

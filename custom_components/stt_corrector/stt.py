@@ -89,6 +89,11 @@ class CorrectedSTTEntity(SpeechToTextEntity):
         return self._config_entry.options
 
     @property
+    def correction_locale(self) -> str | None:
+        """Locale the corrector is built for; None until the first audio."""
+        return self._corrector_locale
+
+    @property
     def supported_languages(self) -> list[str]:
         wrapped = self._get_wrapped_entity()
         if wrapped is None:
@@ -384,10 +389,21 @@ class CorrectedSTTEntity(SpeechToTextEntity):
         )
         return result
 
-    async def async_test_correction(self, text: str) -> Any:
+    async def async_test_correction(
+        self, text: str, language: str | None = None
+    ) -> Any:
+        """Diagnose text as live speech in language would be corrected.
+
+        Without a language, use the corrector of the most recent audio.
+        """
+        corrector = (
+            self._corrector
+            if language is None
+            else self._build_corrector(locale=language)
+        )
         phrases = await self._phrase_builder.build()
-        self._corrector.update_phrases(phrases)
-        return self._corrector.diagnose(text)
+        corrector.update_phrases(phrases)
+        return corrector.diagnose(text)
 
     async def async_get_phrases(self) -> list[str]:
         return await self._phrase_builder.build()
@@ -524,6 +540,12 @@ class CorrectedSTTEntity(SpeechToTextEntity):
         if cfg.enable_fuzzy_matching:
             matchers = LanguageModuleRegistry.get_matchers(
                 locale, language_config=cfg.language_config or None
+            )
+            _LOGGER.debug(
+                "%s: corrector for locale %s, matchers %s",
+                self._config_entry.title,
+                locale or "unknown",
+                matchers,
             )
             processors.append(
                 SimilarityProcessor(

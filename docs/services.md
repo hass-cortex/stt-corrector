@@ -159,10 +159,12 @@ service: stt_corrector.test_correction
 data:
   entity_id: stt.groqcloud_whisper_corrected
   text: "turn on the livin room lite"
+  language: "en-US"   # optional
 ```
 
 Response:
 ```yaml
+locale: "en-US"
 original: "turn on the livin room lite"
 corrected: "turn on the living room light"
 changes:
@@ -184,6 +186,10 @@ candidates:
     accepted: false
     excluded: false
 ```
+
+`language` (optional) corrects the text as live speech in that locale would be -- pass your pipeline's language (e.g. `zh-TW`) to get the same result as speaking it. Without it, the test uses the locale of the most recent audio, which is unknown after a restart until someone speaks; then only locale-independent matching applies (e.g. no zh-TW Taiwan readings).
+
+`locale` in the response is the locale the test ran as: the given `language`, else the most recent audio's, else `null`.
 
 Each entry in `changes` includes:
 - `original_segment` / `corrected_segment` -- the text before and after correction

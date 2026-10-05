@@ -13,6 +13,7 @@ Configured in **Language Settings > Chinese (中文)**, one section per locale.
 | Punctuation Characters | all | `。` | Characters stripped from the end of the text |
 | Script Conversion | all | zh-TW `s2tw`, zh-HK `s2hk`, zh-CN off | OpenCC conversion mode |
 | Pinyin Matching | all | on | Use pinyin similarity in Similarity Matching |
+| Taiwan Readings | **zh-TW only** | on | Also match words by their Taiwan pronunciation |
 
 ## Language Processing
 
@@ -40,6 +41,20 @@ The matcher converts both the input segment and each known phrase to pinyin syll
 
 The phrase score is the average over its syllables.
 
+## Taiwan readings (zh-TW)
+
+pypinyin reads every word the mainland way, so a word Taiwan reads differently -- `垃圾` is `lè sè` in Taiwan, `lā jī` on the mainland -- never matches how STT spells a Taiwan speaker (`樂瑟`). For zh-TW, the matcher also scores both strings with Taiwan readings and keeps the better score, so a mainland-reading match is never lost.
+
+The readings are in `mandarin/taiwan_readings.tsv`, generated from the [McBopomofo](https://github.com/openvanilla/McBopomofo) dictionary (MIT) -- the same source app-cortex-tts uses -- by `scripts/mandarin/taiwan_readings.py`. The table lists only words whose Taiwan reading differs from pypinyin's in an initial or final (`垃圾`, `伺服器`). Tone-only differences are left out: a same-syllable, other-tone pair already scores 0.85, so it cannot decide a match on its own.
+
+Turn **Taiwan Readings** off when the STT engine already corrects Taiwan readings itself.
+
+The table is defined as a difference from pypinyin, so regenerate it after a pypinyin upgrade:
+
+```bash
+uv run python scripts/mandarin/taiwan_readings.py
+```
+
 ## Worked Examples
 
 ### Pinyin catches a homophone
@@ -54,4 +69,18 @@ Similarity Matching:
   Known phrase "冷氣" pinyin: ["leng3", "qi4"]
   Score: 1.0 (exact pinyin match) -> accepted
   Result: "打開冷氣"
+```
+
+### Taiwan reading catches a homophone (zh-TW)
+
+Voice command: User says "take out the trash today" (`今天要倒垃圾`), pronouncing `垃圾` the Taiwan way (`lè sè`). `垃圾` is a custom phrase.
+
+STT engine output: `今天要到樂瑟`
+
+```
+Similarity Matching:
+  "樂瑟" pinyin: ["le4", "se4"]
+  Known phrase "垃圾" mainland pinyin: ["la1", "ji1"] -> score 0.15
+  Known phrase "垃圾" Taiwan pinyin:   ["le4", "se4"] -> score 1.0 -> accepted
+  Result: "今天要到垃圾"
 ```

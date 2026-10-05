@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import probatio
 import pytest
@@ -105,12 +105,13 @@ class TestTestCorrection:
             ]
         )
 
-        async def _test_correction(text):
+        async def _test_correction(text, language):
             corrector.update_phrases(["走廊燈"])
             return corrector.diagnose(text)
 
         entity = MagicMock()
         entity.async_test_correction = _test_correction
+        entity.correction_locale = "zh-TW"
 
         call = _make_service_call({"entity_id": ENTITY_ID, "text": "走廊等"})
 
@@ -120,11 +121,38 @@ class TestTestCorrection:
         ):
             result = await async_handle_test_correction(mock_hass, call)
 
+        assert result["locale"] == "zh-TW"
         assert result["original"] == "走廊等"
         assert result["corrected"] == "走廊燈"
         assert len(result["changes"]) == 1
         assert result["changes"][0]["method"] == "fuzzy_match"
         assert isinstance(result["candidates"], list)
+
+    @pytest.mark.asyncio
+    async def test_language_is_passed_and_reported(self, mock_hass):
+        from custom_components.stt_corrector.services import (
+            async_handle_test_correction,
+        )
+
+        entity = MagicMock()
+        entity.correction_locale = None
+        entity.async_test_correction = AsyncMock(
+            return_value=MagicMock(
+                original="x", corrected="x", changes=[], candidates=[]
+            )
+        )
+        call = _make_service_call(
+            {"entity_id": ENTITY_ID, "text": "x", "language": "zh-TW"}
+        )
+
+        with patch(
+            "custom_components.stt_corrector.services._find_stt_entity",
+            return_value=entity,
+        ):
+            result = await async_handle_test_correction(mock_hass, call)
+
+        entity.async_test_correction.assert_awaited_once_with("x", "zh-TW")
+        assert result["locale"] == "zh-TW"
 
     @pytest.mark.asyncio
     async def test_empty_text_raises_error(self, mock_hass):

@@ -236,6 +236,21 @@ class TestOptionsFlowMenu:
         assert result["step_id"] == "lang_mandarin"
 
     @pytest.mark.asyncio
+    async def test_lang_mandarin_taiwan_readings_only_in_zh_tw(self, mock_hass):
+        entry = MagicMock()
+        entry.options = {}
+        flow = STTCorrectorOptionsFlow(entry)
+        flow.hass = mock_hass
+        result = await flow.async_step_lang_mandarin()
+        fields = {
+            str(section_key): {str(k) for k in section.schema.schema}
+            for section_key, section in result["data_schema"].schema.items()
+        }
+        assert "taiwan_readings" in fields["zh_tw"]
+        assert "taiwan_readings" not in fields["zh_hk"]
+        assert "taiwan_readings" not in fields["zh_cn"]
+
+    @pytest.mark.asyncio
     async def test_lang_mandarin_saves(self):
         entry = MagicMock()
         entry.options = {}

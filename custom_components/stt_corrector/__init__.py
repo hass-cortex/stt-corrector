@@ -31,6 +31,7 @@ def _preload_language_modules() -> None:
 
     for module in LanguageModuleRegistry.all_modules():
         module.preload()
+        _LOGGER.debug("Preloaded language module %s", module.module_key())
 
 
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:

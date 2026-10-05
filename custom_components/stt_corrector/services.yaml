@@ -15,6 +15,12 @@ test_correction:
       example: 'turn on the livin room lite'
       selector:
         text:
+    language:
+      description: 'Locale to correct as (e.g. zh-TW); defaults to the locale of the most recent audio'
+      required: false
+      example: 'zh-TW'
+      selector:
+        text:
 
 add_phrases:
   description: 'Add phrases to the custom phrases list'
