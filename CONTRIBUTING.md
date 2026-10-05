@@ -89,8 +89,10 @@ stt-corrector/
       languages/           # Language module framework
         __init__.py          # LanguageModule ABC + normalize_locale()
         registry.py          # LanguageModuleRegistry
-        mandarin.py          # MandarinModule + PinyinMatcher + ChineseScriptConverter
-  tests/                 # Test suite
+        mandarin/            # Chinese: module, pinyin matcher, OpenCC
+  docs/languages/        # One page per language
+  scripts/<language>/    # Per-language generator scripts
+  tests/                 # Test suite (per-language tests in tests/languages/<language>/)
   pyproject.toml         # Project metadata and tool config
 ```
 
@@ -150,11 +152,12 @@ HA voice pipelines and STT engines may send locale codes in different formats (`
 
 To add processing and phonetic matching for a new language:
 
-1. **Create the module** in `correction/languages/<language>.py` -- subclass `LanguageModule` and implement all abstract methods (see `mandarin.py` as a reference)
+1. **Create the subpackage** `correction/languages/<language>/` -- subclass `LanguageModule` and implement all abstract methods (see `mandarin/` as a reference); keep the language's data files there and load them in `preload()`
 2. **Register the module** in `correction/languages/registry.py` -- add an instance to `LanguageModuleRegistry._modules`
 3. **Add a config flow step** in `config_flow.py` -- add an `async_step_lang_<key>` method that delegates to `_handle_language_step`
 4. **Add UI strings** in `strings.json` and `translations/en.json` for the new step (these files must stay in sync)
-5. **Write tests** for the new module
+5. **Write tests** in `tests/languages/<language>/`
+6. **Document it** in `docs/languages/<language>.md` and link it from `docs/correction-pipeline.md`
 
 See the [AGENTS.md](AGENTS.md#adding-a-new-language-module) for a detailed step-by-step guide with code templates.
 

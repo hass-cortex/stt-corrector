@@ -8,7 +8,6 @@ from .fuzzy_matcher import FuzzyMatcher
 
 # Framework API
 from .languages import LanguageModule
-from .languages.mandarin import PinyinMatcher
 from .languages.registry import LanguageModuleRegistry
 from .matchers import DefaultMatcher, PhoneticMatcher
 from .processors import (
@@ -45,5 +44,4 @@ __all__ = [
     # Implementations
     "DefaultMatcher",
     "FuzzyMatcher",
-    "PinyinMatcher",
 ]

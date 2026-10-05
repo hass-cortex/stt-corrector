@@ -1,9 +1,10 @@
 """Language-specific processing modules for STT correction.
 
-Each language module is self-contained, providing:
+Each language is a self-contained subpackage (e.g. ``mandarin/``), providing:
 - LanguageProcessor implementations (Language Processing)
 - PhoneticMatcher implementations (Similarity Matching)
 - Per-locale configuration defaults and schema
+- Its own data files, loaded in ``preload()``
 """
 
 from __future__ import annotations
@@ -92,6 +93,14 @@ class LanguageModule(ABC):
             Dict mapping lowercase locale to list of setting names.
             e.g. {"zh-tw": ["script_conversion", "pinyin_matching"]}
         """
+
+    def preload(self) -> None:
+        """Load blocking resources (dictionaries, tables) ahead of use.
+
+        Called once per process from an executor thread at integration
+        setup, so corrections in the event loop never do file I/O.
+        """
+        return  # nothing to load by default
 
     def select_options(self) -> dict[str, list[dict[str, str]]]:
         """Return select options for settings rendered as dropdowns.

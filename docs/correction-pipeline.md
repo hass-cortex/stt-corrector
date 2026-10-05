@@ -42,22 +42,11 @@ You can configure mappings in **Language Settings > \<Language\> > \<Locale\> > 
 
 Applies locale-specific text normalization. The integration selects the appropriate language module based on the audio locale sent by the voice pipeline (the original locale, not the mapped STT language).
 
-**Currently supported: Chinese (zh-TW, zh-HK, zh-CN)**
+Each language module supplies its own processors, documented on its page:
 
-For Chinese locales, two processors run in order:
-
-1. **Trailing punctuation stripping** -- Removes sentence-ending punctuation (like `。`) that STT engines sometimes append to voice commands. These characters are meaningless for home automation commands and can interfere with later matching.
-
-2. **Script conversion** -- Converts between simplified and traditional Chinese using [OpenCC](https://github.com/BYVoid/OpenCC). Each locale can choose any conversion mode from the dropdown:
-
-   | Mode | Direction | Description |
-   |------|-----------|-------------|
-   | s2tw | Simplified → Traditional | Taiwan standard |
-   | s2hk | Simplified → Traditional | Hong Kong variant |
-   | t2s | Traditional → Simplified | Generic conversion |
-   | Off | — | Disabled |
-
-   **Defaults:** zh-TW uses `s2tw`, zh-HK uses `s2hk`, zh-CN is off. These can be changed per locale in Language Settings.
+| Language | Locales | Processors |
+|----------|---------|------------|
+| [Chinese (Mandarin)](languages/mandarin.md) | zh-TW, zh-HK, zh-CN | Trailing punctuation stripping, script conversion (OpenCC) |
 
 **Other languages**: No built-in language processing yet. The framework is extensible -- new languages can be added by implementing a `LanguageModule`.
 
@@ -86,14 +75,8 @@ The matching strategy depends on the language:
 
 | Language | Matching method | How it works |
 |----------|----------------|--------------|
-| Chinese (zh-TW, zh-HK, zh-CN) | Pinyin comparison | Converts characters to romanized pronunciation, compares syllable by syllable with tone awareness and similar-initial boosting |
+| [Chinese](languages/mandarin.md#similarity-matching-pinyin) (zh-TW, zh-HK, zh-CN) | Pinyin comparison | Converts characters to romanized pronunciation, compares syllable by syllable with tone awareness and similar-initial boosting |
 | All other languages | SequenceMatcher | Standard fuzzy string comparison with word-boundary-aware sliding windows |
-
-**Pinyin matching details**: The matcher converts both the input segment and each known phrase to pinyin syllables, then scores them based on:
-- Exact syllable match (same base + same tone): 1.0
-- Same base, different tone: 0.85 (tone differences are common STT errors)
-- Similar initial consonant with same final (e.g., l/n, zh/z, sh/s): 0.70+
-- Different syllable count (more than 1 apart): 0.0 (not the same phrase)
 
 **Known phrases** are built from two sources:
 - **Auto-collected**: Friendly names of exposed entities, device names, area names, and floor names from your HA registries (each source can be toggled independently)
@@ -165,25 +148,4 @@ Similarity Matching:
 Final result: "turn off living room light"
 ```
 
-### Chinese (zh-TW): Pinyin catches a homophone
-
-Voice command: User says "turn on the AC" in Mandarin. The HA device is named `冷氣`, but STT picks a homophone.
-
-STT engine output: `打開冷器` (wrong character `器` instead of `氣`, same pronunciation)
-
-```
-Language Processing:
-  No trailing punctuation -> "打開冷器" (unchanged)
-  Already traditional script -> "打開冷器" (unchanged)
-
-Custom Replacements:
-  No matching rules -> "打開冷器" (unchanged)
-
-Similarity Matching:
-  "冷器" pinyin: ["leng3", "qi4"]
-  Known phrase "冷氣" pinyin: ["leng3", "qi4"]
-  Score: 1.0 (exact pinyin match) -> accepted
-  Result: "打開冷氣"
-
-Final result: "打開冷氣"
-```
+More Chinese examples: [Chinese (Mandarin)](languages/mandarin.md#worked-examples).

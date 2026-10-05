@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any, Final
 
@@ -22,29 +21,16 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS: Final = ["stt", "sensor"]
 
 
-def _preload_pypinyin() -> None:
-    """Pre-load pypinyin in executor to avoid blocking I/O in event loop.
+def _preload_language_modules() -> None:
+    """Load every language module's blocking resources, in an executor thread.
 
-    pypinyin reads pinyin_dict.json on import and phrases_dict.json on first
-    lazy_pinyin() call — both trigger blocking open(). Loading them here
-    (in a thread) ensures subsequent calls from the event loop are instant.
+    Importing the modules here, not at the top, keeps their library imports
+    (pypinyin reads its dictionary on import) off the event loop too.
     """
-    from pypinyin import lazy_pinyin
+    from .correction.languages.registry import LanguageModuleRegistry
 
-    lazy_pinyin("")  # force-load phrases_dict.json
-
-
-def _preload_opencc() -> None:
-    """Pre-load OpenCC in executor to avoid blocking I/O in event loop.
-
-    OpenCC reads conversion tables on first use, which triggers blocking I/O.
-    Loading here (in a thread) populates the mandarin module's cache so
-    subsequent calls from the event loop are instant.
-    """
-    from .correction.languages.mandarin import OPENCC_MODES, _get_opencc
-
-    for mode in OPENCC_MODES:
-        _get_opencc(mode)
+    for module in LanguageModuleRegistry.all_modules():
+        module.preload()
 
 
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
@@ -53,11 +39,8 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
 
     async_register_services(hass)
 
-    # Global preloads — shared across all entries, only once
-    await asyncio.gather(
-        hass.async_add_executor_job(_preload_pypinyin),
-        hass.async_add_executor_job(_preload_opencc),
-    )
+    # Global preload — shared across all entries, only once
+    await hass.async_add_executor_job(_preload_language_modules)
     return True
 
 

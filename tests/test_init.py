@@ -47,6 +47,21 @@ class TestAsyncSetup:
         assert result is True
         assert mock_hass.services.async_register.call_count == 10
 
+    def test_preload_runs_every_language_module(self, monkeypatch):
+        """Setup preloads through the module hook, not language-specific code."""
+        from custom_components.stt_corrector import _preload_language_modules
+        from custom_components.stt_corrector.correction.languages.registry import (
+            LanguageModuleRegistry,
+        )
+
+        modules = [MagicMock(), MagicMock()]
+        monkeypatch.setattr(LanguageModuleRegistry, "_modules", tuple(modules))
+
+        _preload_language_modules()
+
+        for module in modules:
+            module.preload.assert_called_once_with()
+
 
 class TestAsyncSetupEntry:
     """Test async_setup_entry."""

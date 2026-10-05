@@ -20,7 +20,7 @@ Home Assistant custom integration that wraps any STT entity with a three-process
 
 ```
 custom_components/stt_corrector/
-├── __init__.py          # Entry point: async_setup_entry, async_unload_entry, pypinyin preload
+├── __init__.py          # Entry point: async_setup_entry, async_unload_entry, language-module preload
 ├── stt.py               # CorrectedSTTEntity -- proxy STT entity wrapping any HA STT provider
 ├── sensor.py            # 10 correction statistics sensors (RestoreSensor-based)
 ├── config_flow.py       # Setup (wrapped entity + optional settings template), reconfigure (swap source), options
@@ -45,7 +45,10 @@ custom_components/stt_corrector/
 │   └── languages/
 │       ├── __init__.py      # LanguageModule ABC + normalize_locale()
 │       ├── registry.py      # LanguageModuleRegistry
-│       └── mandarin.py      # MandarinModule + PinyinMatcher + ChineseScriptConverter (configurable OpenCC mode)
+│       └── mandarin/        # One subpackage per language; everything Chinese lives here
+│           ├── module.py          # MandarinModule -- per-locale settings, processors, matcher, preload
+│           ├── pinyin.py          # pinyin_similarity + PinyinMatcher
+│           └── script.py          # ChineseScriptConverter (OpenCC)
 ├── services.yaml        # Service UI definitions
 ├── strings.json         # UI strings (source of truth)
 └── translations/en.json # English translations (must match strings.json)
@@ -62,7 +65,7 @@ custom_components/stt_corrector/
 - **Wrapped-entity lifecycle**: `async_step_reconfigure` swaps the source in place (entry_id, corrected entity unique_id/entity_id, and options all preserved, so voice pipelines keep working). If the wrapped entity disappears, `stt.py` raises a fixable repair issue (checked on add-to-hass and live via entity-registry events); the fix flow in `repairs.py` re-selects a source and self-clears.
 - **Config reuse**: `copy_correction_config` service copies the full options wholesale from one corrector to others; the setup dialog offers a "Copy settings from" template selector for new entries.
 - **Three-processor correction pipeline**: Language Processing (punctuation stripping, script conversion) → Custom Replacements → Similarity Matching. Processors are independently toggleable.
-- **LanguageModule framework**: Each language is a self-contained module (`correction/languages/`) providing processors (Language Processing), matchers (Similarity Matching), config schema, select options for dropdown settings, and per-locale defaults. Add new languages by subclassing `LanguageModule` and registering in `LanguageModuleRegistry`.
+- **LanguageModule framework**: Each language is a self-contained subpackage (`correction/languages/<language>/`) providing processors (Language Processing), matchers (Similarity Matching), config schema, select options for dropdown settings, per-locale defaults, and a `preload()` hook for its blocking resources (setup runs every module's `preload()` in an executor). Nothing outside the subpackage knows a language's internals. Add new languages by subclassing `LanguageModule` and registering in `LanguageModuleRegistry`. A language's docs, generator scripts and tests follow the same split: `docs/languages/<language>.md`, `scripts/<language>/`, `tests/languages/<language>/`.
 - **Corrector lifecycle**: `SpeechCorrector` is rebuilt when the audio locale changes. Phrases are updated on the existing corrector before each correction.
 - **Locale normalization**: Always use `normalize_locale()` from `correction.languages` when comparing or looking up locale codes. HA Voice Pipeline and different STT engines send locales in inconsistent formats (`zh-TW`, `zh_tw`, `zh_TW`, `zh-tw`). The normalizer lowercases and converts underscores to hyphens (`zh-tw`). All config keys use this normalized format.
 - **PhoneticMatcher**: Abstract base with `supports()`, `similarity()`, `windows()`; each `LanguageModule.get_matcher()` supplies one.
@@ -144,20 +147,27 @@ git push origin main --follow-tags
 
 ## Adding a New Language Module
 
-To add language-specific processing for a new language, three places need changes:
+A language is an extension: its code, data, docs, scripts and tests live in their own directories, and the framework changes only by one registry entry and one config-flow step.
 
-### Step 1: Create the language module (`correction/languages/<language>.py`)
+| Part | Location |
+|------|----------|
+| Code + data files | `correction/languages/<language>/` (`__init__.py` exports the module class) |
+| Docs | `docs/languages/<language>.md`, linked from `docs/correction-pipeline.md` and README |
+| Generator / maintenance scripts | `scripts/<language>/` (download caches in `scripts/*/.cache/`, gitignored) |
+| Tests | `tests/languages/<language>/` |
 
-Subclass `LanguageModule` and implement all abstract methods. See `mandarin.py` as reference.
+### Step 1: Create the language subpackage (`correction/languages/<language>/`)
+
+Subclass `LanguageModule` and implement all abstract methods. See `mandarin/` as reference. Override `preload()` if the language loads files or dictionaries -- it runs in an executor at setup, so the event loop never does that I/O.
 
 ```python
 """<Language> processing module for STT correction."""
 
 from __future__ import annotations
 from typing import Any
-from . import LanguageModule, normalize_locale
-from ..matchers import PhoneticMatcher
-from ..processors.base import LanguageProcessor
+from .. import LanguageModule, normalize_locale
+from ...matchers import PhoneticMatcher
+from ...processors.base import LanguageProcessor
 
 class <Language>Module(LanguageModule):
     def locales(self) -> tuple[str, ...]:
@@ -248,7 +258,8 @@ When adding features or changing behavior, update these files:
 | File | What to update |
 |------|---------------|
 | `README.md` | Feature list, pipeline diagram, config options table, FAQ |
-| `docs/correction-pipeline.md` | Pipeline processors, worked examples |
+| `docs/correction-pipeline.md` | Language-independent pipeline, worked examples |
+| `docs/languages/<language>.md` | That language's settings, processors, matcher, worked examples |
 | `docs/sensors.md` | If adding/changing sensor entities |
 | `docs/services.md` | If adding/changing services |
 | `AGENTS.md` | Architecture section, adding language guide, conventions |
