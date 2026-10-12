@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+# The correction library owns its defaults; it cannot import the integration.
+from .correction.defaults import DEFAULT_THRESHOLD
+
 DOMAIN = "stt_corrector"
 
 # Config entry data keys
@@ -41,4 +44,4 @@ DEFAULT_AUTO_COLLECT_SOURCES: list[str] = [
 ]
 
 # Defaults
-DEFAULT_FUZZY_THRESHOLD = 0.80
+DEFAULT_FUZZY_THRESHOLD = DEFAULT_THRESHOLD

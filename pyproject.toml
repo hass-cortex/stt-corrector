@@ -1,9 +1,10 @@
 [project]
 name = "stt-corrector"
 version = "0.9.0"
-description = "STT post-recognition correction integration for Home Assistant — wraps any STT entity with phonetic correction"
+description = "STT post-recognition correction library (script conversion, replacement rules, pinyin matching) behind the stt_corrector Home Assistant integration"
 readme = "README.md"
-requires-python = ">=3.14"
+# The library also serves the gateway (3.12); the integration runs on HA's 3.14.
+requires-python = ">=3.12"
 license = {text = "MIT"}
 authors = [{name = "parkghost", email = "parkghost@gmail.com"}]
 keywords = ["home-assistant", "speech-to-text", "stt", "voice", "correction", "pinyin"]
@@ -12,6 +13,8 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: Home Automation",
     "Topic :: Multimedia :: Sound/Audio :: Speech",
@@ -22,12 +25,21 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["setuptools>=82.0.1"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["custom_components*"]
+# The distribution is the correction library, importable as `stt_correction`.
+# Its source stays inside the integration, which HACS ships as a directory.
+[tool.hatch.build.targets.wheel]
+only-include = ["custom_components/stt_corrector/correction"]
+
+[tool.hatch.build.targets.wheel.sources]
+"custom_components/stt_corrector/correction" = "stt_correction"
+
+# The dev environment runs everything from the source tree; an editable install
+# is impossible with the remap above.
+[tool.uv]
+package = false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -35,10 +47,14 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 markers = ["integration: Integration tests requiring external resources"]
+# Integration tests need the network; run them with `pytest -m integration`.
+addopts = "-m 'not integration'"
 
 [tool.ruff]
 target-version = "py314"
 line-length = 88
+# The correction library keeps to the package's oldest supported Python.
+per-file-target-version = { "custom_components/stt_corrector/correction/**" = "py312" }
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "ASYNC", "B", "SIM", "RUF013"]
@@ -61,6 +77,11 @@ useLibraryCodeForTypes = true
 # homeassistant is not installed in this repo (mocked in tests); suppress missing-import noise
 reportMissingImports = "none"
 reportMissingTypeStubs = "none"
+# The correction library keeps to the package's oldest supported Python.
+executionEnvironments = [
+    { root = "custom_components/stt_corrector/correction", pythonVersion = "3.12" },
+    { root = "custom_components" },
+]
 
 [tool.coverage.run]
 source = ["custom_components"]

@@ -204,6 +204,7 @@ Development versions may contain breaking changes -- to revert, run the same act
 | Document | Description |
 |----------|-------------|
 | [Correction Pipeline](docs/correction-pipeline.md) | Three-processor correction pipeline with examples |
+| [Correction Library](docs/library.md) | Use the correction pipeline outside Home Assistant as the `stt_correction` package |
 | [Chinese (Mandarin)](docs/languages/mandarin.md) | Chinese locales: settings, script conversion, pinyin matching, Taiwan readings |
 | [Sensors](docs/sensors.md) | Sensor entities for correction tracking and monitoring |
 | [Services](docs/services.md) | Management services with parameters and examples |

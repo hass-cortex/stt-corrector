@@ -30,10 +30,8 @@ from .correction import (
     CorrectionResult,
     DiagnosticResult,
     LanguageModuleRegistry,
-    ReplacementProcessor,
-    SimilarityProcessor,
     SpeechCorrector,
-    TextProcessor,
+    build_corrector,
 )
 from .correction.languages import normalize_locale
 from .correction.types import CorrectionChange
@@ -577,42 +575,22 @@ class CorrectedSTTEntity(SpeechToTextEntity):
         if cfg is None:
             cfg = CorrectionConfig.from_options(self._options)
 
-        processors: list[TextProcessor] = []
-
-        # Language Processing processors (only when locale is known)
-        if cfg.enable_language_processing and locale:
-            module = LanguageModuleRegistry.get_module_for_locale(locale)
-            if module is not None:
-                module_cfg = cfg.language_config.get(
-                    module.module_key(), module.default_config()
-                )
-                processors.extend(module.get_processors(locale, module_cfg))
-
-        # Custom Replacements processor
-        if cfg.enable_custom_replacements and cfg.custom_replacements:
-            processors.append(ReplacementProcessor(cfg.custom_replacements))
-
-        # Similarity Matching processor
-        if cfg.enable_fuzzy_matching:
-            matchers = LanguageModuleRegistry.get_matchers(
-                locale, language_config=cfg.language_config or None
-            )
-            _LOGGER.debug(
-                "%s: corrector for locale %s, matchers %s",
-                self._config_entry.title,
-                locale or "unknown",
-                matchers,
-            )
-            processors.append(
-                SimilarityProcessor(
-                    known_phrases=[],
-                    threshold=cfg.fuzzy_threshold,
-                    matchers=matchers,
-                    exclusions=cfg.custom_exclusions or None,
-                )
-            )
-
-        return SpeechCorrector(processors)
+        _LOGGER.debug(
+            "%s: corrector for locale %s",
+            self._config_entry.title,
+            locale or "unknown",
+        )
+        return build_corrector(
+            locale,
+            replacements=(
+                cfg.custom_replacements if cfg.enable_custom_replacements else None
+            ),
+            exclusions=cfg.custom_exclusions,
+            threshold=cfg.fuzzy_threshold,
+            language_config=cfg.language_config,
+            language_processing=cfg.enable_language_processing,
+            similarity_matching=cfg.enable_fuzzy_matching,
+        )
 
     def _push_stats(self, stats: CorrectionStats) -> None:
         runtime_data: STTCorrectorRuntimeData = self._config_entry.runtime_data

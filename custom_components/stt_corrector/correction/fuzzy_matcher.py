@@ -7,6 +7,7 @@ for the PhoneticMatcher base class and built-in implementations.
 
 from __future__ import annotations
 
+from .defaults import DEFAULT_THRESHOLD
 from .matchers import PhoneticMatcher
 from .types import CorrectionCandidate, CorrectionChange, CorrectionMethod
 
@@ -28,7 +29,7 @@ class FuzzyMatcher:
     def __init__(
         self,
         known_phrases: list[str],
-        threshold: float = 0.80,
+        threshold: float = DEFAULT_THRESHOLD,
         matchers: list[PhoneticMatcher] | None = None,
         exclusions: list[str] | None = None,
     ) -> None:

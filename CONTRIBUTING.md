@@ -27,6 +27,10 @@ uv run pytest tests/ --cov=custom_components --cov-report=term-missing
 
 # Run a specific test file
 uv run pytest tests/test_stt.py -v
+
+# Run the integration tests (deselected by default; they build a virtualenv and
+# install the `stt_correction` package, which needs network access)
+uv run pytest -m integration -v
 ```
 
 ## Code Style
@@ -76,7 +80,8 @@ stt-corrector/
     phrase_builder.py    # HA registry phrase collection for fuzzy matching
     services.py          # HA service handlers
     const.py             # Constants, defaults, config keys
-    correction/          # Language-agnostic correction pipeline
+    correction/          # Language-agnostic correction pipeline (also packaged as `stt_correction`)
+      builder.py           # build_corrector (assembles the pipeline from plain values)
       corrector.py         # SpeechCorrector (pipeline orchestrator)
       fuzzy_matcher.py     # Sliding window + similarity scoring
       matchers.py          # PhoneticMatcher ABC + DefaultMatcher

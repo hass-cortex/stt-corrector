@@ -20,6 +20,7 @@ jobs:
       - run: uv sync --frozen --group dev --group test
       - run: uv run ruff check .
       - run: uv run pytest -v
+      - run: uv run pytest -m integration -v
 
   release:
     name: Create GitHub Release

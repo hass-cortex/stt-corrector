@@ -1,6 +1,7 @@
 """STT post-recognition text correction library."""
 
 # Consumer API
+from .builder import build_corrector
 from .corrector import SpeechCorrector
 
 # Implementations
@@ -26,6 +27,7 @@ from .types import (
 
 __all__ = [
     # Consumer API
+    "build_corrector",
     "SpeechCorrector",
     "CorrectionCandidate",
     "CorrectionChange",

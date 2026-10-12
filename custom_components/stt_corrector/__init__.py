@@ -24,8 +24,9 @@ PLATFORMS: Final = ["stt", "sensor"]
 def _preload_language_modules() -> None:
     """Load every language module's blocking resources, in an executor thread.
 
-    Importing the modules here, not at the top, keeps their library imports
-    (pypinyin reads its dictionary on import) off the event loop too.
+    Their library imports (pypinyin reads its dictionary on import) already ran
+    when Home Assistant imported this package in its import executor, since
+    ``const`` takes its defaults from the correction library.
     """
     from .correction.languages.registry import LanguageModuleRegistry
 
