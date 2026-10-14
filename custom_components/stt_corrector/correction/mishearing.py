@@ -107,9 +107,32 @@ def changed_span(heard: str, meant: str) -> tuple[int, int, int, int] | None:
     return ops[0][1], ops[-1][2], ops[0][3], ops[-1][4]
 
 
-def candidate_fixes(heard: str, meant: str) -> Iterator[Fix]:
-    """Fixes to try, safest first: phrases (narrow to wide), then rules."""
-    span = changed_span(heard, meant)
+def words_span(
+    heard: str, meant: str, words: tuple[str, str]
+) -> tuple[int, int, int, int] | None:
+    """The span of reported words (misheard, meant) in heard and meant, or None.
+
+    A mishearing reported as words is one, however their characters differ
+    (路口站 for 入口燈 differ twice around 口). The first place the misheard
+    words are in ``heard`` is it; None when they are not, or when the meant
+    words there do not make ``meant``.
+    """
+    wrong, right = normalize_text(words[0]), normalize_text(words[1])
+    at = heard.find(wrong) if wrong else -1
+    if at < 0 or heard[:at] + right + heard[at + len(wrong) :] != meant:
+        return None
+    return at, at + len(wrong), at, at + len(right)
+
+
+def candidate_fixes(
+    heard: str, meant: str, span: tuple[int, int, int, int] | None = None
+) -> Iterator[Fix]:
+    """Fixes to try, safest first: phrases (narrow to wide), then rules.
+
+    ``span``: where they differ (heard[a1:a2] vs meant[b1:b2]); by default the
+    one changed span.
+    """
+    span = span or changed_span(heard, meant)
     if span is None:
         return
     a1, a2, b1, b2 = span
@@ -166,6 +189,7 @@ def plan_fix(
     screen_for: ScreenFor,
     regression: Sequence[str],
     names: Sequence[str],
+    words: tuple[str, str] | None = None,
 ) -> FixPlan:
     """Find the safest fix that corrects ``raw`` to ``meant``.
 
@@ -176,6 +200,8 @@ def plan_fix(
         screen_for: Builds the cheap could-it-change test for a fix.
         regression: Texts the fix must leave corrected exactly as today.
         names: Known names; a fix must be about one of them.
+        words: The misheard words and the meant ones, when the report names
+            them: their place is the one mishearing (words_span).
 
     Returns:
         The plan: a fix, ``already_corrected``, or ``rejected`` with why.
@@ -187,7 +213,14 @@ def plan_fix(
         return FixPlan("already_corrected", corrected=now)
 
     heard = normalize_text(now)
-    if changed_span(heard, target) is None:
+    span = words_span(heard, target, words) if words else changed_span(heard, target)
+    if words and span is None:
+        return FixPlan(
+            "rejected",
+            corrected=now,
+            reason=f"'{words[0]}' -> '{words[1]}' does not turn the text into the meant one",
+        )
+    if span is None:
         return FixPlan(
             "rejected",
             corrected=now,
@@ -204,7 +237,7 @@ def plan_fix(
 
     reasons: list[str] = []
     unnamed: list[Fix] = []
-    for fix in candidate_fixes(heard, target):
+    for fix in candidate_fixes(heard, target, span):
         if not is_about_a_name(fix.right, names):
             unnamed.append(fix)
             continue

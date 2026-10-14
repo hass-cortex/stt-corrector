@@ -143,6 +143,33 @@ class TestPlanFix:
         assert plan.status == "rejected"
         assert "one mishearing at a time" in plan.reason
 
+    def test_reported_words_are_one_mishearing_however_they_differ(self) -> None:
+        """路口站 and 入口燈 differ on both sides of 口: one mishearing all the same."""
+        plan = plan_fix(
+            "打開路口站",
+            "打開入口燈",
+            _corrector_for,
+            _screen_for,
+            [*HISTORY, *PHRASES],
+            PHRASES,
+            words=("路口站", "入口燈"),
+        )
+        assert plan.status == "fix"
+        assert plan.corrected == "打開入口燈"
+
+    def test_reported_words_that_do_not_make_the_meant_text_are_rejected(self) -> None:
+        plan = plan_fix(
+            "打開路口站",
+            "打開入口燈",
+            _corrector_for,
+            _screen_for,
+            [*HISTORY, *PHRASES],
+            PHRASES,
+            words=("路口", "入口燈"),
+        )
+        assert plan.status == "rejected"
+        assert "'路口' -> '入口燈'" in plan.reason
+
     def test_rejection_explains_each_attempt(self) -> None:
         plan = plan_fix(
             "開力氣",
