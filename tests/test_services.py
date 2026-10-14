@@ -996,7 +996,7 @@ class TestReportMishearing:
 
     @staticmethod
     def _phrase_plan():
-        from custom_components.stt_corrector.mishearing import Fix, FixPlan
+        from custom_components.stt_corrector.correction.mishearing import Fix, FixPlan
 
         return FixPlan("fix", "今天要倒垃圾", Fix("phrase", "到樂薩", "倒垃圾"))
 
@@ -1054,7 +1054,7 @@ class TestReportMishearing:
 
     @pytest.mark.asyncio
     async def test_finds_the_corrector_that_heard_it(self, mock_hass):
-        from custom_components.stt_corrector.mishearing import FixPlan
+        from custom_components.stt_corrector.correction.mishearing import FixPlan
 
         other = self._entry_with_recognition(
             "stt.other", "開燈", "開燈", FixPlan("already_corrected", "開燈")
@@ -1113,7 +1113,7 @@ class TestReportMishearing:
     async def test_a_rule_is_proposed_for_approval_not_applied(self, mock_hass):
         import homeassistant.helpers.issue_registry as ir
 
-        from custom_components.stt_corrector.mishearing import Fix, FixPlan
+        from custom_components.stt_corrector.correction.mishearing import Fix, FixPlan
 
         plan = FixPlan("fix", "打開立扇", Fix("replacement", "力戰", "立扇"))
         entry = self._entry_with_recognition(ENTITY_ID, "打開力戰", "打開力戰", plan)

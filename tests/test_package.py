@@ -10,10 +10,20 @@ import pytest
 _REPO = Path(__file__).resolve().parent.parent
 
 _CONSUMER = """
-from stt_correction import build_corrector
+from stt_correction import build_corrector, plan_fix
 
 corrector = build_corrector("zh-TW", replacements={"客聽": "客廳"}, phrases=["臥室燈"])
 print(corrector.correct("打开客听和卧式灯。").corrected)
+
+
+def corrector_for(fix):
+    rules = {fix.wrong: fix.right} if fix and fix.kind == "replacement" else {}
+    built = build_corrector("zh-TW", replacements=rules, phrases=["立扇"])
+    return lambda text: built.correct(text).corrected
+
+
+plan = plan_fix("打開力戰", "打開立扇", corrector_for, lambda fix: lambda text: True, [], ["立扇"])
+print(plan.status, plan.fix and plan.fix.right)
 """
 
 
@@ -41,4 +51,7 @@ def test_installed_package_corrects_a_sentence(tmp_path: Path) -> None:
         check=True,
     )
 
-    assert result.stdout.strip() == "打開客廳和臥室燈"
+    corrected, planned = result.stdout.strip().splitlines()
+    assert corrected == "打開客廳和臥室燈"
+    # A mishearing is planned into a fix with the installed library alone.
+    assert planned.startswith("fix ")

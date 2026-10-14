@@ -34,9 +34,9 @@ from .correction import (
     build_corrector,
 )
 from .correction.languages import normalize_locale
+from .correction.mishearing import Correct, Fix, FixPlan, plan_fix
 from .correction.types import CorrectionChange
 from .correction_config import CorrectionConfig
-from .mishearing import Correct, Fix, FixPlan, plan_fix
 from .models import CorrectionStats, STTCorrectorRuntimeData
 from .phrase_builder import PhraseBuilder
 from .recognition_log import RecognitionLog

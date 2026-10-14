@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from custom_components.stt_corrector.mishearing import Fix, FixPlan
+from custom_components.stt_corrector.correction.mishearing import Fix, FixPlan
 from custom_components.stt_corrector.models import STTCorrectorRuntimeData
 from custom_components.stt_corrector.repairs import (
     LearnedRuleRepairFlow,

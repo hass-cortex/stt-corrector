@@ -15,7 +15,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
-from .mishearing import normalize_text
+from .correction.mishearing import normalize_text
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant

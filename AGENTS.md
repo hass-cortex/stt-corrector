@@ -28,7 +28,6 @@ custom_components/stt_corrector/
 ├── correction_config.py # CorrectionConfig dataclass (no Azure-specific fields)
 ├── phrase_builder.py    # Collects names from HA registries (floors, areas, devices, exposed entities)
 ├── services.py          # 11 HA services with probatio.Schema validation
-├── mishearing.py        # Pure: plan + validate a fix for "heard X, meant Y" (report_mishearing)
 ├── recognition_log.py   # Last 100 recognitions per corrector (HA Store) -- mishearing lookup + regression texts
 ├── capture.py           # Capture-device introspection (PipelineRun stream) + shared ContextVar relay to downstream STT
 ├── helpers.py           # find_corrected_stt_entity via runtime_data lookup
@@ -40,6 +39,7 @@ custom_components/stt_corrector/
 │   ├── fuzzy_matcher.py   # FuzzyMatcher -- sliding window + similarity scoring
 │   ├── matchers.py        # PhoneticMatcher ABC + DefaultMatcher (SequenceMatcher fallback)
 │   ├── types.py           # CorrectionMethod, CorrectionChange, CorrectionResult, DiagnosticResult
+│   ├── mishearing.py      # Pure: plan + validate a fix for "heard X, meant Y" (report_mishearing)
 │   ├── processors/        # Language processors
 │   │   ├── base.py          # LanguageProcessor ABC
 │   │   ├── punctuation.py   # TrailingPunctuationStripper

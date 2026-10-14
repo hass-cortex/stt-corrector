@@ -11,6 +11,9 @@ from .fuzzy_matcher import FuzzyMatcher
 from .languages import LanguageModule
 from .languages.registry import LanguageModuleRegistry
 from .matchers import DefaultMatcher, PhoneticMatcher
+
+# Learning from mishearings
+from .mishearing import Fix, FixPlan, normalize_text, plan_fix
 from .processors import (
     ReplacementProcessor,
     SimilarityProcessor,
@@ -34,6 +37,11 @@ __all__ = [
     "CorrectionMethod",
     "CorrectionResult",
     "DiagnosticResult",
+    # Learning from mishearings
+    "Fix",
+    "FixPlan",
+    "normalize_text",
+    "plan_fix",
     # Framework API
     "LanguageModule",
     "LanguageModuleRegistry",

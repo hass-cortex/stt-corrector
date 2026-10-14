@@ -25,8 +25,8 @@ from .const import (
     CORRECTION_PROCESSOR_SIMILARITY,
     DOMAIN,
 )
+from .correction.mishearing import FixPlan
 from .correction_config import CorrectionConfig
-from .mishearing import FixPlan
 
 if TYPE_CHECKING:
     from .recognition_log import Recognition

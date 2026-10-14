@@ -1,6 +1,6 @@
 """Tests for mishearing fix planning (mishearing.py), with real correctors."""
 
-from custom_components.stt_corrector.mishearing import (
+from custom_components.stt_corrector.correction.mishearing import (
     Fix,
     candidate_fixes,
     changed_span,
