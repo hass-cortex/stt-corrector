@@ -731,3 +731,86 @@ class TestCaptureDeviceRelay:
             await entity.async_process_audio_stream(metadata, _audio_stream())
 
         assert pushed[0].capture_device is None
+
+
+class TestScriptTagLocales:
+    """A pipeline may send zh-Hant / zh rather than a region tag."""
+
+    @staticmethod
+    def _metadata(language: str) -> MagicMock:
+        metadata = MagicMock(language=language)
+        metadata.format = "wav"
+        metadata.codec = "pcm"
+        metadata.bit_rate = 16
+        metadata.sample_rate = 16000
+        metadata.channel = 1
+        return metadata
+
+    @pytest.mark.asyncio
+    async def test_script_tag_reaches_region_only_stt_and_corrects_as_taiwan(
+        self, mock_hass
+    ):
+        """zh-Hant must reach a zh-TW-only engine as zh-TW, corrected as zh-TW."""
+        entry = _make_config_entry()
+        wrapped = _make_wrapped_entity(
+            text="今天要到樂瑟", supported_languages=["zh-TW"]
+        )
+        entity = CorrectedSTTEntity(mock_hass, entry)
+
+        with (
+            patch.object(entity, "_get_wrapped_entity", return_value=wrapped),
+            patch.object(entity, "_phrase_builder") as mock_pb,
+        ):
+            mock_pb.build = AsyncMock(return_value=["垃圾"])
+            result = await entity.async_process_audio_stream(
+                self._metadata("zh-Hant"), _audio_stream()
+            )
+
+        forwarded = wrapped.async_process_audio_stream.call_args[0][0]
+        assert forwarded.language == "zh-TW"
+        assert entity.correction_locale == "zh-TW"
+        assert entity.recognitions.find("今天要到樂瑟").locale == "zh-TW"
+        assert result.text == "今天要到垃圾"
+
+    @pytest.mark.asyncio
+    async def test_bare_zh_follows_ha_country(self, mock_hass):
+        """With HA set to Taiwan, a bare zh test corrects with Taiwan readings."""
+        mock_hass.config.country = "TW"
+        entity = CorrectedSTTEntity(mock_hass, _make_config_entry())
+
+        with patch.object(entity, "_phrase_builder") as mock_pb:
+            mock_pb.build = AsyncMock(return_value=["垃圾"])
+            result = await entity.async_test_correction("今天要到樂瑟", "zh")
+
+        assert result.corrected == "今天要到垃圾"
+
+    def test_script_only_stt_still_offers_region_locales(self, mock_hass):
+        """A wrapped STT offering only zh-Hant/zh-Hans still exposes zh-TW."""
+        entity = CorrectedSTTEntity(mock_hass, _make_config_entry())
+        wrapped = _make_wrapped_entity(supported_languages=["zh-Hant", "zh-Hans"])
+
+        with patch.object(entity, "_get_wrapped_entity", return_value=wrapped):
+            langs = entity.supported_languages
+
+        assert "zh-TW" in langs
+
+    @pytest.mark.asyncio
+    async def test_tag_the_stt_supports_is_forwarded_as_sent(self, mock_hass):
+        """zh-Hant goes to an engine offering both zh-Hant and zh-TW unchanged."""
+        wrapped = _make_wrapped_entity(
+            text="你好", supported_languages=["zh-TW", "zh-Hant"]
+        )
+        entity = CorrectedSTTEntity(mock_hass, _make_config_entry())
+
+        with (
+            patch.object(entity, "_get_wrapped_entity", return_value=wrapped),
+            patch.object(entity, "_phrase_builder") as mock_pb,
+        ):
+            mock_pb.build = AsyncMock(return_value=[])
+            await entity.async_process_audio_stream(
+                self._metadata("zh-Hant"), _audio_stream()
+            )
+
+        forwarded = wrapped.async_process_audio_stream.call_args[0][0]
+        assert forwarded.language == "zh-Hant"
+        assert entity.correction_locale == "zh-TW"

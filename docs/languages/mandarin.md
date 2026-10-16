@@ -2,6 +2,19 @@
 
 The `mandarin` language module handles the Chinese locales **zh-TW**, **zh-HK** and **zh-CN**. Code lives in `custom_components/stt_corrector/correction/languages/mandarin/`; see [How It Works](../correction-pipeline.md) for the language-independent pipeline it plugs into.
 
+Any other Chinese tag a pipeline sends is corrected as one of the three, and its settings are that locale's:
+
+| Tag | Locale |
+|-----|--------|
+| a `TW` region (`zh-Hant-TW`, `cmn-TW`, `zh-TW-…`) | zh-TW |
+| a `HK` or `MO` region | zh-HK |
+| a `CN` or `SG` region | zh-CN |
+| `zh-Hant`, no region | zh-TW |
+| `zh-Hans`, no region | zh-CN |
+| `zh`, no region or script | from Home Assistant's country (TW, HK/MO, else zh-CN) |
+
+A region wins over a script, so `zh-Hant-HK` is zh-HK.
+
 ## Settings
 
 Configured in **Language Settings > Chinese (中文)**, one section per locale.

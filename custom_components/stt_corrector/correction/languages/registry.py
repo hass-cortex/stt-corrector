@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..matchers import DefaultMatcher, PhoneticMatcher
-from . import LanguageModule, normalize_locale
+from . import LanguageModule
 from .mandarin import MandarinModule
 
 
@@ -29,12 +29,23 @@ class LanguageModuleRegistry:
         Returns:
             The matching LanguageModule, or None.
         """
-        normalized = normalize_locale(locale)
         for module in cls._modules:
-            for prefix in module.locales():
-                if normalized.startswith(normalize_locale(prefix)):
-                    return module
+            if module.canonical_locale(locale) is not None:
+                return module
         return None
+
+    @classmethod
+    def canonical_locale(cls, locale: str, country: str | None = None) -> str:
+        """Return the module locale a tag means (zh-Hant -> zh-TW), else the tag.
+
+        Args:
+            locale: BCP-47 locale as the pipeline sent it.
+            country: HA's configured country, for a tag with no region.
+        """
+        for module in cls._modules:
+            if (canonical := module.canonical_locale(locale, country)) is not None:
+                return canonical
+        return locale
 
     @classmethod
     def get_module_by_key(cls, key: str) -> LanguageModule | None:

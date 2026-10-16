@@ -142,20 +142,31 @@ class CorrectedSTTEntity(SpeechToTextEntity):
         Returns:
             The mapped STT language if different from the locale, or None.
         """
-        normalized = normalize_locale(locale)
+        canonical = self._canonical_locale(locale)
         lang_config = self._options.get(CONF_LANGUAGE_CONFIG, {})
-        module = LanguageModuleRegistry.get_module_for_locale(locale)
+        module = LanguageModuleRegistry.get_module_for_locale(canonical)
         if module is None:
             return None
         module_cfg = lang_config.get(module.module_key(), {})
-        locale_cfg = module_cfg.get(normalized, {})
+        locale_cfg = module_cfg.get(normalize_locale(canonical), {})
         if CONF_STT_LANGUAGE in locale_cfg:
             stt_lang = locale_cfg[CONF_STT_LANGUAGE]
+        elif normalize_locale(locale) in {
+            normalize_locale(lang) for lang in available_languages
+        }:
+            return None
         else:
-            stt_lang = module.default_stt_language(locale, available_languages)
-        if stt_lang and normalize_locale(stt_lang) != normalized:
+            stt_lang = module.default_stt_language(canonical, available_languages)
+        # Compared with the tag as sent: zh-Hant must still reach a zh-TW-only STT.
+        if stt_lang and normalize_locale(stt_lang) != normalize_locale(locale):
             return stt_lang
         return None
+
+    def _canonical_locale(self, locale: str) -> str:
+        """Return the module locale ``locale`` means, using HA's country."""
+        return LanguageModuleRegistry.canonical_locale(
+            locale, self._hass.config.country
+        )
 
     @property
     def supported_formats(self) -> list[Any]:
@@ -339,9 +350,10 @@ class CorrectedSTTEntity(SpeechToTextEntity):
         result = await wrapped.async_process_audio_stream(forwarded_metadata, relay())
 
         if result.result == SpeechResultState.SUCCESS and result.text:
-            if self._corrector_locale != metadata.language:
-                self._corrector = self._build_corrector(locale=metadata.language)
-                self._corrector_locale = metadata.language
+            locale = self._canonical_locale(metadata.language)
+            if self._corrector_locale != locale:
+                self._corrector = self._build_corrector(locale=locale)
+                self._corrector_locale = locale
 
             phrases = await self._phrase_builder.build()
             _LOGGER.debug("Phrase list: %d phrases", len(phrases))
@@ -366,7 +378,7 @@ class CorrectedSTTEntity(SpeechToTextEntity):
 
             corrected_text = correction.corrected
             correction_applied = bool(correction.changes)
-            self.recognitions.add(result.text, corrected_text, metadata.language)
+            self.recognitions.add(result.text, corrected_text, locale)
 
             self._push_stats(
                 CorrectionStats(
@@ -408,7 +420,7 @@ class CorrectedSTTEntity(SpeechToTextEntity):
         corrector = (
             self._corrector
             if language is None
-            else self._build_corrector(locale=language)
+            else self._build_corrector(locale=self._canonical_locale(language))
         )
         phrases = await self._phrase_builder.build()
         corrector.update_phrases(phrases)
@@ -425,6 +437,7 @@ class CorrectedSTTEntity(SpeechToTextEntity):
         The fix must leave this corrector's recent recognitions and every
         known phrase corrected exactly as the current config does.
         """
+        locale = self._canonical_locale(locale)
         cfg = CorrectionConfig.from_options(self._options)
         phrases = await self._phrase_builder.build()
         regression = [*self.recognitions.raw_texts(locale), *phrases]

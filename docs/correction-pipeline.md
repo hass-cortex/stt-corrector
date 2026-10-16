@@ -27,7 +27,7 @@ Before audio reaches the wrapped STT engine, the corrector checks if the request
 4. The STT engine transcribes the audio using its native language support
 5. The corrector runs the locale-specific correction pipeline (e.g., zh-TW script conversion) on the result
 
-**Auto-computed defaults:** When you haven't explicitly configured a mapping, the corrector auto-detects a match using prefix matching (e.g., `zh-TW` matches `zh` in the STT engine's supported languages). These locales automatically appear in your voice pipeline's language dropdown.
+**Auto-computed defaults:** When you haven't explicitly configured a mapping, the corrector auto-detects a match: the locale itself, then its script (`zh-TW` and `zh-HK` match `zh-Hant`, `zh-CN` matches `zh-Hans`), then the bare language (`zh`). These locales automatically appear in your voice pipeline's language dropdown.
 
 **Three states per locale:**
 | State | Behavior |

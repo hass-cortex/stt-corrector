@@ -49,6 +49,23 @@ _BASE_LOCALE_CONFIG: dict[str, Any] = {
 
 _LOCALES = ("zh-TW", "zh-HK", "zh-CN")
 
+# Subtags that name each locale; a region wins over a script (zh-Hant-HK).
+_REGION_LOCALES: dict[str, str] = {
+    "tw": "zh-TW",
+    "hk": "zh-HK",
+    "mo": "zh-HK",
+    "cn": "zh-CN",
+    "sg": "zh-CN",
+}
+# Hant alone could be Taiwan or Hong Kong; Taiwan is the default.
+_SCRIPT_LOCALES: dict[str, str] = {"hant": "zh-TW", "hans": "zh-CN"}
+# The script a wrapped STT may offer instead of the region.
+_LOCALE_SCRIPTS: dict[str, str] = {
+    "zh-tw": "zh-hant",
+    "zh-hk": "zh-hant",
+    "zh-cn": "zh-hans",
+}
+
 
 class MandarinModule(LanguageModule):
     """Chinese language module with script conversion and pinyin matching.
@@ -77,10 +94,35 @@ class MandarinModule(LanguageModule):
             for locale in (normalize_locale(loc) for loc in _LOCALES)
         }
 
+    def canonical_locale(self, locale: str, country: str | None = None) -> str | None:
+        """Map any Chinese tag (zh, zh-Hant, zh-SG, cmn-TW, ...) onto a locale.
+
+        A tag with neither region nor script follows HA's country, then zh-CN.
+        """
+        language, *subtags = normalize_locale(locale).split("-")
+        if language not in ("zh", "cmn"):
+            return None
+        for subtag in subtags:
+            if subtag in _REGION_LOCALES:
+                return _REGION_LOCALES[subtag]
+        for subtag in subtags:
+            if subtag in _SCRIPT_LOCALES:
+                return _SCRIPT_LOCALES[subtag]
+        return _REGION_LOCALES.get((country or "").lower(), "zh-CN")
+
+    def default_stt_language(self, locale: str, available_languages: list[str]) -> str:
+        """Prefer the exact locale, then its script (zh-TW -> zh-Hant), then zh."""
+        by_normalized = {normalize_locale(lang): lang for lang in available_languages}
+        normalized = normalize_locale(self.canonical_locale(locale) or locale)
+        for candidate in (normalized, _LOCALE_SCRIPTS.get(normalized), "zh"):
+            if candidate is not None and candidate in by_normalized:
+                return by_normalized[candidate]
+        return ""
+
     def get_processors(
         self, locale: str, config: dict[str, dict[str, Any]]
     ) -> list[TextProcessor]:
-        normalized = normalize_locale(locale)
+        normalized = normalize_locale(self.canonical_locale(locale) or locale)
         locale_cfg = config.get(normalized, {})
         processors: list[TextProcessor] = []
 
@@ -107,7 +149,7 @@ class MandarinModule(LanguageModule):
                 for loc in _LOCALES
             )
             return PinyinMatcher() if enabled else None
-        normalized = normalize_locale(locale)
+        normalized = normalize_locale(self.canonical_locale(locale) or locale)
         locale_cfg = config.get(normalized, {})
         if not locale_cfg.get(SETTING_PINYIN_MATCHING, True):
             return None

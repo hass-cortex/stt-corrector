@@ -96,6 +96,21 @@ class LanguageModule(ABC):
             e.g. {"zh-tw": ["script_conversion", "pinyin_matching"]}
         """
 
+    def canonical_locale(self, locale: str, country: str | None = None) -> str | None:
+        """Return which of ``locales()`` the tag means, or None if none.
+
+        Config, processors and matchers are keyed by these locales, so every
+        lookup goes through here. The default accepts a locale itself or one
+        with extra subtags (zh-TW-x -> zh-TW). ``country`` (HA's configured
+        country) lets a subclass resolve a tag with no region.
+        """
+        normalized = normalize_locale(locale)
+        for declared in self.locales():
+            prefix = normalize_locale(declared)
+            if normalized == prefix or normalized.startswith(f"{prefix}-"):
+                return declared
+        return None
+
     def preload(self) -> None:
         """Load blocking resources (dictionaries, tables) ahead of use.
 

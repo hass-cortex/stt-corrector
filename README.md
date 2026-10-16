@@ -180,7 +180,7 @@ Replacement rules are applied in longest-key-first order. If you have rules for 
 
 **My STT engine only supports "zh" but I need zh-TW for traditional Chinese -- what do I do?**
 
-Nothing special. The STT Corrector automatically detects that your STT engine supports `zh` and makes `zh-TW`, `zh-HK`, and `zh-CN` available in your voice pipeline via prefix matching. When you select `zh-TW`, the corrector sends `zh` to the underlying STT engine, then runs the zh-TW correction pipeline (e.g., simplified-to-traditional conversion). You can customize the mapping in **Language Settings > Chinese > zh-TW > STT Language**, or set it to "Disabled" to hide a locale.
+Nothing special. The STT Corrector automatically detects that your STT engine supports `zh` (or `zh-Hant` / `zh-Hans`) and makes `zh-TW`, `zh-HK`, and `zh-CN` available in your voice pipeline. When you select `zh-TW`, the corrector sends `zh` to the underlying STT engine, then runs the zh-TW correction pipeline (e.g., simplified-to-traditional conversion). You can customize the mapping in **Language Settings > Chinese > zh-TW > STT Language**, or set it to "Disabled" to hide a locale.
 
 **Do I need to configure Language Settings for non-Chinese languages?**
 

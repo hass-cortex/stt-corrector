@@ -1,5 +1,7 @@
 """Tests for LanguageModule ABC, MandarinModule, and LanguageModuleRegistry."""
 
+import pytest
+
 from custom_components.stt_corrector.correction.languages.mandarin import (
     ChineseScriptConverter,
     MandarinModule,
@@ -427,3 +429,60 @@ class TestDefaultSttLanguage:
         module = MandarinModule()
         result = module.default_stt_language("zh-TW", ["zh", "zh-TW"])
         assert result == "zh-TW"
+
+
+class TestMandarinCanonicalLocale:
+    """Any Chinese tag a pipeline sends lands on one of the three locales."""
+
+    @pytest.mark.parametrize(
+        ("tag", "country", "expected"),
+        [
+            ("zh-Hant", None, "zh-TW"),
+            ("zh-Hans", None, "zh-CN"),
+            ("zh-Hant-HK", None, "zh-HK"),
+            ("zh-Hant-TW", None, "zh-TW"),
+            ("zh-MO", None, "zh-HK"),
+            ("zh-SG", None, "zh-CN"),
+            ("cmn-TW", None, "zh-TW"),
+            ("zh-TW-x", None, "zh-TW"),
+            ("zh", "TW", "zh-TW"),
+            ("zh", "HK", "zh-HK"),
+            ("zh", None, "zh-CN"),
+            ("en-US", "TW", None),
+        ],
+    )
+    def test_maps_tag(self, tag: str, country: str | None, expected: str) -> None:
+        """A region wins over a script; a bare tag follows HA's country."""
+        assert MandarinModule().canonical_locale(tag, country) == expected
+
+    def test_script_tag_gets_taiwan_processing(self) -> None:
+        """zh-Hant used to match no module and skip every Chinese processor."""
+        module = MandarinModule()
+        processors = module.get_processors("zh-Hant", module.default_config())
+        matcher = module.get_matcher("zh-Hant", module.default_config())
+        assert any(isinstance(p, ChineseScriptConverter) for p in processors)
+        assert matcher is not None
+        assert matcher.similarity("樂瑟", "垃圾") == 1.0
+
+    def test_extra_subtag_keeps_locale_settings(self) -> None:
+        """zh-TW-x routed to the module but read no zh-tw settings."""
+        module = MandarinModule()
+        processors = module.get_processors("zh-TW-x", module.default_config())
+        assert any(isinstance(p, ChineseScriptConverter) for p in processors)
+
+    def test_registry_routes_script_tags(self) -> None:
+        for tag in ("zh-Hant", "zh-Hans", "zh"):
+            assert isinstance(
+                LanguageModuleRegistry.get_module_for_locale(tag), MandarinModule
+            )
+
+    @pytest.mark.parametrize(
+        ("locale", "expected"),
+        [("zh-TW", "zh-Hant"), ("zh-HK", "zh-Hant"), ("zh-CN", "zh-Hans")],
+    )
+    def test_stt_offering_scripts_only(self, locale: str, expected: str) -> None:
+        """A wrapped STT with zh-Hant/zh-Hans but no region tags still serves zh-TW."""
+        assert (
+            MandarinModule().default_stt_language(locale, ["en", "zh-Hans", "zh-Hant"])
+            == expected
+        )
