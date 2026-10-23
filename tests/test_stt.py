@@ -653,17 +653,21 @@ class TestCaptureDeviceRelay:
 
     @staticmethod
     def _pipeline_run_stream(satellite_id="assist_satellite.kitchen"):
-        """A stream shaped like assist_pipeline's PipelineRun generator."""
+        """A stream shaped like assist_pipeline's processor generator."""
 
         class PipelineRun:
             def __init__(self):
                 self._device_id = None
                 self._satellite_id = satellite_id
 
+        class _DefaultPipelineProcessor:
+            def __init__(self, host):
+                self.host = host
+
             async def _speech_to_text_stream(self):
                 yield b"audio_data"
 
-        return PipelineRun()._speech_to_text_stream()
+        return _DefaultPipelineProcessor(PipelineRun())._speech_to_text_stream()
 
     @pytest.mark.asyncio
     async def test_relays_capture_device_during_wrapped_call(self, mock_hass):
