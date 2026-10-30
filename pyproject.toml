@@ -29,7 +29,7 @@ requires = ["hatchling>=1.27.0"]
 build-backend = "hatchling.build"
 
 # The distribution is the correction library, importable as `stt_correction`.
-# Its source stays inside the integration, which HACS ships as a directory.
+# Its source stays inside the integration, which the Marketplace ships as a directory.
 [tool.hatch.build.targets.wheel]
 only-include = ["custom_components/stt_corrector/correction"]
 

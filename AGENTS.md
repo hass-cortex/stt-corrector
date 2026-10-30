@@ -131,12 +131,12 @@ Version is tracked in three places, kept in sync by commitizen (`cz bump`):
 | `pyproject.toml` | `[project] version` and `[tool.commitizen] version` |
 | `custom_components/stt_corrector/manifest.json` | `version` |
 
-### HACS Configuration
+### Marketplace Configuration (`hacs.json`)
 
 `hacs.json`:
-- `name` -- display name in HACS UI
+- `name` -- display name in the Marketplace UI
 - `homeassistant` -- minimum HA version (currently `2026.10.0`, the first release whose `DeviceRegistry.devices` iterates entries)
-- `render_readme` -- show README in HACS detail page
+- `render_readme` -- legacy HACS flag (Marketplace always renders `README.md` from repo root)
 
 ### Release Workflow
 

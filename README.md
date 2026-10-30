@@ -51,7 +51,7 @@ Audio -----> Wrapped STT -----> Raw Text -----> Correction Pipeline -----> Final
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=hass-cortex&repository=stt-corrector&category=integration)
 
-Click the button above, or manually: **HACS** > search "STT Corrector" > **Download** > restart HA.
+Click the button above, or manually: **Settings > Marketplace** > search "STT Corrector" > **Install** > restart HA.
 
 <details>
 <summary>Manual installation</summary>
@@ -99,7 +99,7 @@ Main Menu
 
 ### Uninstallation
 
-**Settings > Devices & Services** > STT Corrector > three-dot menu > **Delete** > remove `custom_components/stt_corrector/` > restart HA.
+**Settings > Devices & Services** > STT Corrector > three-dot menu > **Delete** > uninstall from **Settings > Marketplace** (or manually remove `custom_components/stt_corrector/`) > restart HA.
 
 ## Debugging
 
@@ -188,7 +188,7 @@ No. Language Settings currently only has options for Chinese. For other language
 
 **How do I install the latest development version?**
 
-After the integration is installed via HACS, you can switch to the latest `main` branch using the `update.install` action:
+After the integration is installed via the Marketplace, you can switch to the latest `main` branch using the `update.install` action:
 
 1. Go to **Developer Tools > Actions**
 2. Select the `update.install` action
