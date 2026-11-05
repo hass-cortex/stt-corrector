@@ -205,6 +205,21 @@ class TestSensorLifecycle:
         await sensor.async_added_to_hass()
         assert sensor._attr_native_value is None
 
+    @pytest.mark.asyncio
+    async def test_entity_id_change_keeps_receiving_stats(self):
+        """A renamed sensor stays registered once and keeps counting."""
+        entry = _make_config_entry()
+        sensor = _make_sensor("total_requests", entry)
+        await sensor.async_added_to_hass()
+
+        sensor.entity_id = "sensor.renamed_total_requests"
+        sensor.async_entity_id_changed("sensor.corrected_total_requests")
+        for registered in entry.runtime_data.sensors:
+            registered.handle_transcription(_success_stats())
+
+        assert entry.runtime_data.sensors.count(sensor) == 1
+        assert sensor._attr_native_value == 1
+
 
 async def _async_return(value):
     """Helper to create an awaitable returning the given value."""

@@ -76,9 +76,8 @@ class TestAsyncSetupEntry:
 
         from custom_components.stt_corrector import async_setup_entry
 
-        result = await async_setup_entry(mock_hass, entry)
+        await async_setup_entry(mock_hass, entry)
 
-        assert result is True
         mock_hass.config_entries.async_forward_entry_setups.assert_awaited_once_with(
             entry, ["stt", "sensor"]
         )
@@ -116,30 +115,30 @@ class TestAsyncUnloadEntry:
 
     @pytest.mark.asyncio
     async def test_async_unload_entry_success(self, mock_hass):
-        """Unload should call async_unload_platforms."""
+        """Unload should unload both platforms without raising."""
         entry = _make_config_entry()
         mock_hass.config_entries.async_unload_platforms = AsyncMock(return_value=True)
 
         from custom_components.stt_corrector import async_unload_entry
 
-        result = await async_unload_entry(mock_hass, entry)
+        await async_unload_entry(mock_hass, entry)
 
-        assert result is True
         mock_hass.config_entries.async_unload_platforms.assert_awaited_once_with(
             entry, ["stt", "sensor"]
         )
 
     @pytest.mark.asyncio
     async def test_async_unload_entry_failure(self, mock_hass):
-        """Unload returning False should propagate."""
+        """A platform that fails to unload must fail the unload by raising."""
+        from homeassistant.exceptions import ConfigEntryError
+
         entry = _make_config_entry()
         mock_hass.config_entries.async_unload_platforms = AsyncMock(return_value=False)
 
         from custom_components.stt_corrector import async_unload_entry
 
-        result = await async_unload_entry(mock_hass, entry)
-
-        assert result is False
+        with pytest.raises(ConfigEntryError):
+            await async_unload_entry(mock_hass, entry)
 
 
 class TestUpdateEntry:

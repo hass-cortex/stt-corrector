@@ -244,6 +244,16 @@ class CorrectedSTTEntity(SpeechToTextEntity):
             self._wrapped_registry_unsub = None
 
     @callback
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Keep the entity in place when its entity_id is renamed.
+
+        Nothing is keyed on this entity's own entity_id: the registry
+        listener tracks the wrapped entity, and runtime_data, repair issues
+        and recognitions are keyed on the config entry.
+        """
+        super().async_entity_id_changed(old_entity_id)
+
+    @callback
     def _async_wrapped_registry_updated(self, _event: Any) -> None:
         """Registry changed for the wrapped entity — refresh the issue."""
         self._async_update_wrapped_entity_issue()

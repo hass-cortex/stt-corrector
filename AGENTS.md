@@ -135,7 +135,7 @@ Version is tracked in three places, kept in sync by commitizen (`cz bump`):
 
 `hacs.json`:
 - `name` -- display name in the Marketplace UI
-- `homeassistant` -- minimum HA version (currently `2026.10.0`, the first release whose `DeviceRegistry.devices` iterates entries)
+- `homeassistant` -- minimum HA version (currently `2026.11.0`, the first release whose config entry methods return `None` and that applies entity_id changes in place)
 - `render_readme` -- legacy HACS flag (Marketplace always renders `README.md` from repo root)
 
 ### Release Workflow

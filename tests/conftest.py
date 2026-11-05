@@ -33,6 +33,9 @@ _ha_components_ha_exposed = ModuleType(
 # Exceptions
 _ha_exceptions = ModuleType("homeassistant.exceptions")
 _ha_exceptions.HomeAssistantError = type("HomeAssistantError", (Exception,), {})
+_ha_exceptions.ConfigEntryError = type(
+    "ConfigEntryError", (_ha_exceptions.HomeAssistantError,), {}
+)
 _ha_exceptions.ServiceValidationError = type(
     "ServiceValidationError",
     (_ha_exceptions.HomeAssistantError,),
@@ -176,7 +179,11 @@ _ha_components_stt.SpeechResultState.ERROR = "error"
 _ha_components_stt.SpeechToTextEntity = type(
     "SpeechToTextEntity",
     (),
-    {"_attr_available": True, "async_write_ha_state": lambda self: None},
+    {
+        "_attr_available": True,
+        "async_write_ha_state": lambda self: None,
+        "async_entity_id_changed": lambda self, old_entity_id: None,
+    },
 )
 
 # Entity platform
@@ -241,6 +248,9 @@ class _RestoreSensor:
         return None
 
     def async_write_ha_state(self) -> None:
+        pass
+
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
         pass
 
 
@@ -398,5 +408,12 @@ def mock_hass():
     hass.config_entries.async_remove = AsyncMock(
         return_value={"require_restart": False}
     )
+
+    async def _unload_platforms_or_raise(entry: Any, platforms: Any) -> None:
+        # Mirrors core: raise when async_unload_platforms reports failure.
+        if not await hass.config_entries.async_unload_platforms(entry, platforms):
+            raise _ha_exceptions.ConfigEntryError("unload_platforms_failed")
+
+    hass.config_entries.async_unload_platforms_or_raise = _unload_platforms_or_raise
     hass.data = {}
     return hass

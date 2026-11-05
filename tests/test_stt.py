@@ -370,6 +370,26 @@ class TestCorrectedSTTEntityLifecycle:
         await entity.async_will_remove_from_hass()
         entity._phrase_builder.async_stop_listening.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_entity_id_change_keeps_entity_wired(self, mock_hass):
+        """Renaming the corrector keeps it registered and tracking its source."""
+        entry = _make_config_entry()
+        entity = CorrectedSTTEntity(mock_hass, entry)
+        entity._phrase_builder = MagicMock()
+        unsub = MagicMock()
+        with patch(
+            "homeassistant.helpers.event.async_track_entity_registry_updated_event",
+            return_value=unsub,
+        ):
+            await entity.async_added_to_hass()
+
+        entity.entity_id = "stt.renamed_corrector"
+        entity.async_entity_id_changed("stt.corrected_stt")
+
+        assert entry.runtime_data.entity is entity
+        unsub.assert_not_called()
+        entity._phrase_builder.async_stop_listening.assert_not_called()
+
 
 class TestSupportedLanguagesMerge:
     """Test supported_languages includes mapped locales from language config."""

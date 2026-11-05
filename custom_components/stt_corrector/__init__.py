@@ -48,7 +48,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: STTCorrectorConfigEntry
-) -> bool:
+) -> None:
     """Set up STT Corrector from a config entry."""
     entry.runtime_data = STTCorrectorRuntimeData(
         wrapped_entity_id=entry.data.get(CONF_WRAPPED_ENTITY_ID)
@@ -60,8 +60,6 @@ async def async_setup_entry(
     # The single path for every entry update: options flow, services,
     # reconfigure and the repair flow all land here.
     entry.async_on_unload(entry.add_update_listener(_async_update_entry))
-
-    return True
 
 
 async def _async_update_entry(
@@ -87,9 +85,9 @@ async def _async_update_entry(
 
 async def async_unload_entry(
     hass: HomeAssistant, entry: STTCorrectorConfigEntry
-) -> bool:
+) -> None:
     """Unload an STT Corrector config entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    await hass.config_entries.async_unload_platforms_or_raise(entry, PLATFORMS)
 
 
 async def async_remove_entry(
